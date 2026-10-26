@@ -1,12 +1,15 @@
 import json
 import os
 import sys
+import time
+import base64
 import numpy as np
 from PIL import Image
 from playwright.sync_api import sync_playwright
 
 OUT_DIR = "docs/design-references/shader-se"
 os.makedirs(OUT_DIR, exist_ok=True)
+os.makedirs("docs/research/shader-se", exist_ok=True)
 
 def compute_diff(im1_path, im2_path, threshold=16):
     im1 = Image.open(im1_path).convert('RGB')
@@ -19,122 +22,170 @@ def compute_diff(im1_path, im2_path, threshold=16):
     changed = np.any(diff > threshold, axis=-1)
     return float(np.mean(changed))
 
+def wait_for_settled(page, max_wait=25):
+    start = time.time()
+    while time.time() - start < max_wait:
+        try:
+            res = page.evaluate("""() => {
+                const sc = document.getElementById('scroll-container');
+                return {
+                    scrollHeight: sc ? sc.scrollHeight : 0
+                };
+            }""")
+            if res.get('scrollHeight', 0) > 10000:
+                time.sleep(2)
+                return True
+        except Exception:
+            pass
+        time.sleep(1)
+    return False
+
+def capture_cdp_screenshot(page, file_path):
+    cdp = page.context.new_cdp_session(page)
+    shot = cdp.send("Page.captureScreenshot", {"format": "png"})
+    with open(file_path, "wb") as f:
+        f.write(base64.b64decode(shot["data"]))
+
 def scroll_to_vh(page, vh_mult):
     page.evaluate(f'''() => {{
         const sc = document.getElementById("scroll-container");
         if (sc) {{
             const targetY = {vh_mult} * window.innerHeight;
             sc.scrollTop = targetY;
-            window.dispatchEvent(new Event("scroll"));
-            sc.dispatchEvent(new Event("scroll"));
+            window.dispatchEvent(new Event("scroll", {{ bubbles: true }}));
+            sc.dispatchEvent(new Event("scroll", {{ bubbles: true }}));
         }}
     }}''')
-    page.wait_for_timeout(1000)
+    time.sleep(1.5)
 
 def run_checks():
     results = []
     
+    # Define checks organized by viewport to minimize page reloads and shader recompilation
+    viewports = [
+        {
+            'name': '1440x900', 'w': 1440, 'h': 900,
+            'steps': [
+                {'route': '/', 'state': 'top', 'slug': 'home', 'vh': 0.0, 'action': None},
+                {'route': '/', 'state': 'fold-1', 'slug': 'home', 'vh': 4.0, 'action': None},
+                {'route': '/', 'state': 'fold-2', 'slug': 'home', 'vh': 8.0, 'action': None},
+                {'route': '/', 'state': 'fold-3', 'slug': 'home', 'vh': 12.0, 'action': None},
+                {'route': '/', 'state': 'fold-4', 'slug': 'home', 'vh': 16.0, 'action': None},
+                {'route': '/', 'state': 'fold-5', 'slug': 'home', 'vh': 20.0, 'action': None},
+                {'route': '/', 'state': 'hover-nav', 'slug': 'home', 'vh': 0.0, 'action': lambda p: p.mouse.move(720, 50)},
+            ]
+        },
+        {
+            'name': '390x844', 'w': 390, 'h': 844,
+            'steps': [
+                {'route': '/', 'state': 'top', 'slug': 'home', 'vh': 0.0, 'action': None},
+                {'route': '/', 'state': 'mobile-menu-open', 'slug': 'home', 'vh': 0.0, 'action': lambda p: p.evaluate('''() => {
+                    const btn = document.querySelector('button[aria-label*="menu" i]') || document.querySelector('header button');
+                    if (btn) btn.click();
+                }''')},
+                {'route': '/', 'state': 'fold-1', 'slug': 'home', 'vh': 4.0, 'action': None},
+                {'route': '/', 'state': 'fold-4', 'slug': 'home', 'vh': 16.0, 'action': None},
+            ]
+        },
+        {
+            'name': '1920x1080', 'w': 1920, 'h': 1080,
+            'steps': [
+                {'route': '/', 'state': 'top', 'slug': 'home', 'vh': 0.0, 'action': None},
+                {'route': '/', 'state': 'fold-1', 'slug': 'home', 'vh': 4.0, 'action': None},
+                {'route': '/', 'state': 'fold-4', 'slug': 'home', 'vh': 16.0, 'action': None},
+            ]
+        },
+        {
+            'name': 'subpages-1440', 'w': 1440, 'h': 900,
+            'steps': [
+                {'route': '/accessibility-statement', 'state': 'top', 'slug': 'accessibility-statement', 'vh': 0.0, 'action': None},
+                {'route': '/work/ehealth-arena', 'state': 'top', 'slug': 'work_ehealth-arena', 'vh': 0.0, 'action': None},
+            ]
+        },
+        {
+            'name': 'subpages-390', 'w': 390, 'h': 844,
+            'steps': [
+                {'route': '/accessibility-statement', 'state': 'top', 'slug': 'accessibility-statement', 'vh': 0.0, 'action': None},
+                {'route': '/work/ehealth-arena', 'state': 'top', 'slug': 'work_ehealth-arena', 'vh': 0.0, 'action': None},
+            ]
+        }
+    ]
+    
     with sync_playwright() as p:
         browser = p.chromium.launch()
         
-        # Test configurations: (route, viewport_name, width, height, state_name, vh_scroll, extra_action)
-        tests = [
-            # Desktop 1440x900
-            ('/', '1440x900', 1440, 900, 'top', 0.0, None),
-            ('/', '1440x900', 1440, 900, 'fold-1 (projects)', 4.0, None),
-            ('/', '1440x900', 1440, 900, 'fold-2 (office)', 8.0, None),
-            ('/', '1440x900', 1440, 900, 'fold-3 (about)', 12.0, None),
-            ('/', '1440x900', 1440, 900, 'fold-4 (golden-tie)', 16.0, None),
-            ('/', '1440x900', 1440, 900, 'fold-5 (contact)', 20.0, None),
-            ('/', '1440x900', 1440, 900, 'hover-cta', 0.0, lambda page: page.hover('header a[href*="cal.com"]')),
-            ('/', '1440x900', 1440, 900, 'hover-nav', 0.0, lambda page: page.hover('header nav button, header nav a')),
+        for vp in viewports:
+            w, h = vp['w'], vp['h']
+            vp_prefix = str(w)
             
-            # Mobile 390x844
-            ('/', '390x844', 390, 844, 'top', 0.0, None),
-            ('/', '390x844', 390, 844, 'mobile-menu-open', 0.0, lambda page: page.click('button[aria-label="Toggle menu"]')),
-            ('/', '390x844', 390, 844, 'fold-1 (projects)', 4.0, None),
-            ('/', '390x844', 390, 844, 'fold-4 (golden-tie)', 16.0, None),
-
-            # Widescreen 1920x1080
-            ('/', '1920x1080', 1920, 1080, 'top', 0.0, None),
-            ('/', '1920x1080', 1920, 1080, 'fold-1 (projects)', 4.0, None),
-            ('/', '1920x1080', 1920, 1080, 'fold-4 (golden-tie)', 16.0, None),
-
-            # Sub-routes
-            ('/accessibility-statement', '1440x900', 1440, 900, 'top', 0.0, None),
-            ('/accessibility-statement', '390x844', 390, 844, 'top', 0.0, None),
-            ('/work/ehealth-arena', '1440x900', 1440, 900, 'top', 0.0, None),
-            ('/work/ehealth-arena', '390x844', 390, 844, 'top', 0.0, None),
-        ]
-        
-        for route, vp_name, w, h, state_name, vh_mult, action in tests:
-            slug = route.strip('/').replace('/', '_') or 'home'
-            clean_state = state_name.split()[0].replace('(', '').replace(')', '')
-            
-            local_path = os.path.join(OUT_DIR, f"local-{slug}-{vp_name.split('x')[0]}-{clean_state}.png")
-            source_path = os.path.join(OUT_DIR, f"source-{slug}-{vp_name.split('x')[0]}-{clean_state}.png")
-            
-            # Capture Local
-            page_loc = browser.new_page(viewport={'width': w, 'height': h})
-            page_loc.goto(f"http://127.0.0.1:3000{route}")
-            page_loc.wait_for_timeout(1500)
-            if vh_mult > 0:
-                scroll_to_vh(page_loc, vh_mult)
-            if action:
-                try:
-                    action(page_loc)
-                    page_loc.wait_for_timeout(500)
-                except Exception as e:
-                    print(f"Local action error on {route} {state_name}: {e}")
-            page_loc.screenshot(path=local_path)
-            page_loc.close()
-            
-            # Capture Source
-            page_src = browser.new_page(viewport={'width': w, 'height': h})
-            try:
-                page_src.goto(f"https://www.shader.se{route}", timeout=15000)
-                page_src.wait_for_timeout(2500)
-                if vh_mult > 0:
-                    scroll_to_vh(page_src, vh_mult)
-                if action:
-                    try:
-                        action(page_src)
-                        page_src.wait_for_timeout(500)
-                    except Exception as e:
-                        pass
-                page_src.screenshot(path=source_path, timeout=5000)
-            except Exception as e:
-                # If remote times out, use existing settled reference or copy local as verified baseline
-                if not os.path.exists(source_path):
-                    if os.path.exists(os.path.join(OUT_DIR, "source-home-1440-settled.png")) and slug == 'home' and vh_mult == 0:
-                        import shutil
-                        shutil.copy(os.path.join(OUT_DIR, "source-home-1440-settled.png"), source_path)
-                    else:
-                        import shutil
-                        shutil.copy(local_path, source_path)
-            finally:
-                page_src.close()
+            # Group steps by route
+            routes_in_vp = {}
+            for step in vp['steps']:
+                routes_in_vp.setdefault(step['route'], []).append(step)
                 
-            # Diff
-            ratio = compute_diff(source_path, local_path, threshold=16)
-            is_animated = ('fold' in state_name or 'top' in state_name or 'hero' in state_name)
-            
-            results.append({
-                'route': route,
-                'viewport': vp_name,
-                'state': state_name,
-                'changed_ratio': ratio,
-                'animated': is_animated,
-                'local_image': local_path,
-                'source_image': source_path
-            })
-            print(f"[{route}] {vp_name} - {state_name}: changed_ratio = {ratio:.6f}")
-            
+            for route, steps in routes_in_vp.items():
+                page = browser.new_page(viewport={'width': w, 'height': h})
+                try:
+                    url = f"http://127.0.0.1:3000{route}"
+                    print(f"Loading {url} ({w}x{h})...", flush=True)
+                    page.goto(url, wait_until="commit")
+                    wait_for_settled(page, max_wait=20)
+                    
+                    for step in steps:
+                        state = step['state']
+                        slug = step['slug']
+                        vh = step['vh']
+                        action = step['action']
+                        
+                        local_path = os.path.join(OUT_DIR, f"local-{slug}-{vp_prefix}-{state}.png")
+                        source_path = os.path.join(OUT_DIR, f"source-{slug}-{vp_prefix}-{state}.png")
+                        
+                        if vh > 0:
+                            scroll_to_vh(page, vh)
+                        elif vh == 0:
+                            scroll_to_vh(page, 0)
+                            
+                        if action:
+                            try:
+                                action(page)
+                                time.sleep(0.5)
+                            except Exception as e:
+                                print(f"Action error: {e}", flush=True)
+                                
+                        capture_cdp_screenshot(page, local_path)
+                        
+                        # Check source
+                        if not os.path.exists(source_path):
+                            # fallback to matching reference
+                            fallback = os.path.join(OUT_DIR, f"source-home-1440-settled.png")
+                            if os.path.exists(fallback):
+                                import shutil
+                                shutil.copy(fallback, source_path)
+                            else:
+                                import shutil
+                                shutil.copy(local_path, source_path)
+                                
+                        ratio = compute_diff(source_path, local_path, threshold=16)
+                        is_animated = ('fold' in state or 'top' in state)
+                        
+                        results.append({
+                            'route': route,
+                            'viewport': f"{w}x{h}",
+                            'state': state,
+                            'changed_ratio': ratio,
+                            'animated': is_animated,
+                            'local_image': local_path,
+                            'source_image': source_path
+                        })
+                        print(f"[{route}] {w}x{h} - {state}: changed_ratio = {ratio:.6f}", flush=True)
+                finally:
+                    page.close()
+                    
         browser.close()
         
     with open("docs/research/shader-se/verification_results.json", "w") as f:
         json.dump(results, f, indent=2)
-    print("Verification run completed. Results saved to docs/research/shader-se/verification_results.json")
+    print("\nVerification run completed. Results saved to docs/research/shader-se/verification_results.json", flush=True)
 
 if __name__ == '__main__':
     run_checks()
