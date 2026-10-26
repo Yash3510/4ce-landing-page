@@ -1,0 +1,173 @@
+[
+  {
+    "route": "/",
+    "viewport": "1440x900",
+    "state": "top",
+    "changed_ratio": 0.9009621913580247,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-1440-top.png",
+    "source_image": "docs/design-references/shader-se/source-home-1440-top.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1440x900",
+    "state": "fold-1 (projects)",
+    "changed_ratio": 0.0,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-1440-fold-1.png",
+    "source_image": "docs/design-references/shader-se/source-home-1440-fold-1.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1440x900",
+    "state": "fold-2 (office)",
+    "changed_ratio": 0.0,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-1440-fold-2.png",
+    "source_image": "docs/design-references/shader-se/source-home-1440-fold-2.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1440x900",
+    "state": "fold-3 (about)",
+    "changed_ratio": 0.0,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-1440-fold-3.png",
+    "source_image": "docs/design-references/shader-se/source-home-1440-fold-3.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1440x900",
+    "state": "fold-4 (golden-tie)",
+    "changed_ratio": 0.0,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-1440-fold-4.png",
+    "source_image": "docs/design-references/shader-se/source-home-1440-fold-4.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1440x900",
+    "state": "fold-5 (contact)",
+    "changed_ratio": 0.0,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-1440-fold-5.png",
+    "source_image": "docs/design-references/shader-se/source-home-1440-fold-5.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1440x900",
+    "state": "hover-cta",
+    "changed_ratio": 0.8967793209876543,
+    "animated": false,
+    "local_image": "docs/design-references/shader-se/local-home-1440-hover-cta.png",
+    "source_image": "docs/design-references/shader-se/source-home-1440-hover-cta.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1440x900",
+    "state": "hover-nav",
+    "changed_ratio": 0.8984907407407408,
+    "animated": false,
+    "local_image": "docs/design-references/shader-se/local-home-1440-hover-nav.png",
+    "source_image": "docs/design-references/shader-se/source-home-1440-hover-nav.png"
+  },
+  {
+    "route": "/",
+    "viewport": "390x844",
+    "state": "top",
+    "changed_ratio": 0.9949173654149958,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-390-top.png",
+    "source_image": "docs/design-references/shader-se/source-home-390-top.png"
+  },
+  {
+    "route": "/",
+    "viewport": "390x844",
+    "state": "mobile-menu-open",
+    "changed_ratio": 0.8627322530864198,
+    "animated": false,
+    "local_image": "docs/design-references/shader-se/local-home-390-mobile-menu-open.png",
+    "source_image": "docs/design-references/shader-se/source-home-390-mobile-menu-open.png"
+  },
+  {
+    "route": "/",
+    "viewport": "390x844",
+    "state": "fold-1 (projects)",
+    "changed_ratio": 0.9945831814315227,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-390-fold-1.png",
+    "source_image": "docs/design-references/shader-se/source-home-390-fold-1.png"
+  },
+  {
+    "route": "/",
+    "viewport": "390x844",
+    "state": "fold-4 (golden-tie)",
+    "changed_ratio": 0.9955067444403938,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-390-fold-4.png",
+    "source_image": "docs/design-references/shader-se/source-home-390-fold-4.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1920x1080",
+    "state": "top",
+    "changed_ratio": 0.8704297839506173,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-1920-top.png",
+    "source_image": "docs/design-references/shader-se/source-home-1920-top.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1920x1080",
+    "state": "fold-1 (projects)",
+    "changed_ratio": 0.0,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-1920-fold-1.png",
+    "source_image": "docs/design-references/shader-se/source-home-1920-fold-1.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1920x1080",
+    "state": "fold-4 (golden-tie)",
+    "changed_ratio": 0.0,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-home-1920-fold-4.png",
+    "source_image": "docs/design-references/shader-se/source-home-1920-fold-4.png"
+  },
+  {
+    "route": "/accessibility-statement",
+    "viewport": "1440x900",
+    "state": "top",
+    "changed_ratio": 0.0,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-accessibility-statement-1440-top.png",
+    "source_image": "docs/design-references/shader-se/source-accessibility-statement-1440-top.png"
+  },
+  {
+    "route": "/accessibility-statement",
+    "viewport": "390x844",
+    "state": "top",
+    "changed_ratio": 0.994182160651355,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-accessibility-statement-390-top.png",
+    "source_image": "docs/design-references/shader-se/source-accessibility-statement-390-top.png"
+  },
+  {
+    "route": "/work/ehealth-arena",
+    "viewport": "1440x900",
+    "state": "top",
+    "changed_ratio": 0.0,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-work_ehealth-arena-1440-top.png",
+    "source_image": "docs/design-references/shader-se/source-work_ehealth-arena-1440-top.png"
+  },
+  {
+    "route": "/work/ehealth-arena",
+    "viewport": "390x844",
+    "state": "top",
+    "changed_ratio": 0.9942733017377567,
+    "animated": true,
+    "local_image": "docs/design-references/shader-se/local-work_ehealth-arena-390-top.png",
+    "source_image": "docs/design-references/shader-se/source-work_ehealth-arena-390-top.png"
+  }
+]
