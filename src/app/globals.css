@@ -152,13 +152,6 @@ body {
   outline-color: #1b1b1b;
 }
 
-.paper-grain {
-  background-image: url("/sites/shader-se/textures/grunge.webp");
-  background-size: 600px;
-  mix-blend-mode: multiply;
-  opacity: 0.05;
-}
-
 /* Boot screen: CRT scanlines, then collapses to a line like a tube switching off. */
 .boot {
   transform-origin: center;

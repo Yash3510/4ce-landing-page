@@ -97,7 +97,6 @@ export function Landing() {
         </section>
 
         <section id="about" data-stage="office" className="relative bg-[#f3eee4] text-[#1b1b1b]" aria-labelledby="about-title">
-          <div className="paper-grain pointer-events-none absolute inset-0" aria-hidden="true" />
           <div className="relative mx-auto grid max-w-6xl gap-14 px-5 py-28 sm:px-8 md:grid-cols-[1fr_1.4fr] md:py-36">
             <div>
               <h2 id="about-title" className="text-[clamp(2.5rem,6vw,4.5rem)] leading-none">About Us</h2>
