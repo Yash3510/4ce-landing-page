@@ -46,7 +46,7 @@ export default function RootLayout({
         />
         <meta name="theme-color" content="#000000" />
       </head>
-      <body className="stix_two_text_a3385497-module__eDuTOG__variable font-stix bg-black overflow-hidden overscroll-none select-none">
+      <body className="stix_two_text_a3385497-module__eDuTOG__variable font-stix bg-black overflow-x-hidden select-none">
         {children}
       </body>
     </html>
