@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Shader Development Studio",
+  title: "Studio — Creative Development Studio",
   description:
-    "Empowering Your Business with Next-Generation Interactive 3D and AI Solutions. Based in Sweden and Working with Brands and Agencies Worldwide.",
-  metadataBase: new URL("https://www.shader.se"),
+    "Empowering Your Business with Next-Generation Interactive 3D and AI Solutions. Working with Brands and Agencies Worldwide.",
+  metadataBase: new URL("http://localhost:3000"),
   alternates: {
-    canonical: "https://www.shader.se",
+    canonical: "/",
   },
   icons: {
     icon: [
@@ -17,28 +17,18 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
-    title: "Shader Development Studio",
+    title: "Studio — Creative Development Studio",
     description:
-      "Empowering Your Business with Next-Generation Interactive 3D and AI Solutions. Based in Sweden and Working with Brands and Agencies Worldwide.",
-    url: "https://www.shader.se",
-    siteName: "Shader Development Studio",
-    images: [
-      {
-        url: "https://images.prismic.io/shader/aXyIqgIvOtkhCHKr_og.jpg?auto=format,compress&rect=0,0,1200,630&w=2400&h=1260",
-        width: 1200,
-        height: 630,
-      },
-    ],
+      "Empowering Your Business with Next-Generation Interactive 3D and AI Solutions. Working with Brands and Agencies Worldwide.",
+    url: "/",
+    siteName: "Studio Development",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Shader Development Studio",
+    title: "Studio — Creative Development Studio",
     description:
-      "Empowering Your Business with Next-Generation Interactive 3D and AI Solutions. Based in Sweden and Working with Brands and Agencies Worldwide.",
-    images: [
-      "https://images.prismic.io/shader/aXyIqgIvOtkhCHKr_og.jpg?auto=format,compress&rect=0,0,1200,630&w=2400&h=1260",
-    ],
+      "Empowering Your Business with Next-Generation Interactive 3D and AI Solutions. Working with Brands and Agencies Worldwide.",
   },
 };
 

@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 export async function GET() {
-  const filePath = path.join(process.cwd(), "public/sites/astrodither/index.html");
+  const filePath = path.join(process.cwd(), "public/sites/shader-se/index.html");
   const html = fs.readFileSync(filePath, "utf-8");
   return new NextResponse(html, {
     headers: {

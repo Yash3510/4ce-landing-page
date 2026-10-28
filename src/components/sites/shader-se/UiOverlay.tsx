@@ -179,29 +179,21 @@ export function UiOverlay({ currentSection, isDark = false, onNavigate }: UiOver
           </nav>
 
           <div className="text-neutral-400 text-xs flex flex-col gap-2 border-t border-neutral-800 pt-6">
-            <a href="mailto:hello@shader.se" className="hover:text-white">
-              hello@shader.se
+            <a href="mailto:contact@studio-labs.dev" className="hover:text-white">
+              contact@studio-labs.dev
             </a>
-            <p>Laxholmstorget 3, 602 21 Norrköping, Sweden</p>
+            <p>Worldwide Digital Labs &amp; Production Studio</p>
             <div className="flex gap-4 mt-2">
               <a
-                href="https://www.linkedin.com/company/shadersweden/"
+                href="https://github.com/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-white"
               >
-                LinkedIn
+                GitHub
               </a>
               <a
-                href="https://www.instagram.com/shadersweden/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-white"
-              >
-                Instagram
-              </a>
-              <a
-                href="https://x.com/shadersweden"
+                href="https://x.com/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-white"
