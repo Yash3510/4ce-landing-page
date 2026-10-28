@@ -25,6 +25,8 @@ export interface EngineOptions {
   onLoadProgress(fraction: number): void;
   onReady(webgl: boolean): void;
   onProject(index: number): void;
+  /** Called with the section element that owns the viewport centre whenever it changes. */
+  onSection(section: HTMLElement): void;
 }
 
 const TRANSITION_SECONDS = 0.32;
@@ -72,6 +74,7 @@ export function startEngine(opts: EngineOptions) {
   let transition = 0;
   let switching = false;
   let lastProject = -1;
+  let lastSection: HTMLElement | null = null;
   let raf = 0;
   const timer = new THREE.Timer();
 
@@ -87,6 +90,11 @@ export function startEngine(opts: EngineOptions) {
     stages.forEach((s) => s.resize(w / h));
   };
 
+  const addStage = (id: StageId, stage: Stage) => {
+    stage.resize(window.innerWidth / window.innerHeight);
+    stages.set(id, stage);
+  };
+
   const onPointer = (e: PointerEvent) => {
     pointerGoal.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
   };
@@ -96,15 +104,19 @@ export function startEngine(opts: EngineOptions) {
     const vh = window.innerHeight;
     const progress = new Map<StageId, number>();
     let active: StageId = "hero";
+    let activeEl: HTMLElement | null = null;
     for (const el of opts.sections) {
       const id = el.dataset.stage;
       if (!isStageId(id)) continue;
       const rect = el.getBoundingClientRect();
       // A later section can hold an earlier scene (About sits over the office); the first one drives progress.
       if (!progress.has(id)) progress.set(id, THREE.MathUtils.clamp(-rect.top / Math.max(rect.height - vh, 1), 0, 1));
-      if (rect.top <= vh / 2 && rect.bottom > vh / 2) active = id;
+      if (rect.top <= vh / 2 && rect.bottom > vh / 2) {
+        active = id;
+        activeEl = el;
+      }
     }
-    return { progress, active };
+    return { progress, active, activeEl };
   };
 
   const frame = (now: number) => {
@@ -115,7 +127,11 @@ export function startEngine(opts: EngineOptions) {
     const time = timer.getElapsed();
     pointer.lerp(pointerGoal, 1 - Math.exp(-4 * delta));
 
-    const { progress, active } = readScroll();
+    const { progress, active, activeEl } = readScroll();
+    if (activeEl && activeEl !== lastSection) {
+      lastSection = activeEl;
+      opts.onSection(activeEl);
+    }
     if (active !== shownId && stages.has(active)) switching = true;
     if (switching) {
       transition = Math.min(1, transition + delta / TRANSITION_SECONDS);
@@ -156,18 +172,16 @@ export function startEngine(opts: EngineOptions) {
     const others = Promise.all([createOffice(ctx), createTie(ctx), createContact(ctx)]);
     const hero = await createHero(ctx);
     if (disposed) return;
-    stages.set("hero", hero);
-    resize();
+    addStage("hero", hero);
     opts.onReady(true);
     await imagesReady;
     if (disposed) return;
-    stages.set("work", createWork(ctx));
+    addStage("work", createWork(ctx));
     const rest = await others;
     if (disposed) return;
-    stages.set("office", rest[0]);
-    stages.set("tie", rest[1]);
-    stages.set("contact", rest[2]);
-    resize();
+    addStage("office", rest[0]);
+    addStage("tie", rest[1]);
+    addStage("contact", rest[2]);
   })().catch((error: unknown) => {
     console.error("3D scene failed to load", error);
     opts.onReady(false);

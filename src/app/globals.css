@@ -134,8 +134,36 @@ body {
   overflow: visible;
 }
 
+/* Page chrome: small spaced caps sitting inside the CRT bezel; flips to ink over the paper section. */
+.chrome {
+  --accent: #ff2b2b;
+  --ink: #fcf9f3;
+  color: var(--ink);
+  transition: color 0.4s;
+}
+
+.chrome-light {
+  --ink: #1b1b1b;
+}
+
+.caps {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.pill {
+  border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.pill:hover,
+.pill:focus-visible {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
 .nav-link {
   text-underline-offset: 6px;
+  transition: color 0.2s;
 }
 
 .nav-link:hover,
@@ -144,26 +172,46 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid #fcf9f3;
+  outline: 2px solid currentColor;
   outline-offset: 3px;
 }
 
-#about :focus-visible {
-  outline-color: #1b1b1b;
+.paper {
+  background-color: #eee7d6;
 }
 
-/* Boot screen: CRT scanlines, then collapses to a line like a tube switching off. */
+/* Boot screen: a blue CRT tube that collapses to a line like a set switching off. */
 .boot {
   transform-origin: center;
   transition: transform 0.45s cubic-bezier(0.7, 0, 0.84, 0), opacity 0.2s linear 0.4s, filter 0.45s;
 }
 
-.boot::after {
+.boot-tube {
+  position: absolute;
+  inset: 1.2vmin;
+  overflow: hidden;
+  border-radius: 4vmin / 5vmin;
+  color: #efe4bd;
+  background: radial-gradient(120% 100% at 50% 45%, #4040bf 0%, #3434a6 55%, #20206e 100%);
+  box-shadow: inset 0 0 10vmin rgb(0 0 0 / 0.55);
+}
+
+.boot-tube::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.16) 0 1px, transparent 1px 3px);
+}
+
+.boot-logo,
+.boot-mono {
+  text-shadow: 1.5px 0 rgb(255 70 70 / 0.55), -1.5px 0 rgb(90 170 255 / 0.55);
+}
+
+.boot-mono {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: 0.04em;
 }
 
 .boot-off {
@@ -175,8 +223,9 @@ body {
 
 .boot-stripes {
   border-radius: 50%;
-  background: repeating-linear-gradient(to bottom, #efe7d2 0 9%, transparent 9% 15%);
-  clip-path: inset(0 0 0 0 round 50%);
+  background: repeating-linear-gradient(to bottom, currentColor 0 9%, transparent 9% 15%);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 45%);
+  mask-image: linear-gradient(to right, transparent, #000 45%);
 }
 
 @media (prefers-reduced-motion: reduce) {

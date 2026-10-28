@@ -111,6 +111,21 @@ function textPlane(text: string, width: number) {
   return mesh;
 }
 
+function radialGlow() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, "rgba(255,255,255,0.9)");
+    g.addColorStop(0.35, "rgba(255,255,255,0.35)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  return new THREE.CanvasTexture(canvas);
+}
+
 function smokeLayer(texture: THREE.Texture, size: number, opacity: number) {
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(size, size),
@@ -144,7 +159,7 @@ export async function createHero(ctx: StageContext): Promise<Stage> {
   scene.add(model);
   // The baked backdrop reads too bright under our lights; sink it into the dark.
   model.getObjectByName("background")?.traverse((o) => {
-    if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial) o.material.color.setScalar(0.18);
+    if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial) o.material.color.setScalar(0.1);
   });
   const computer = model.getObjectByName("computer") ?? model;
   const box = new THREE.Box3().setFromObject(computer);
@@ -169,12 +184,19 @@ export async function createHero(ctx: StageContext): Promise<Stage> {
   screenTexture.colorSpace = THREE.SRGBColorSpace;
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 0.75),
-    new THREE.MeshBasicMaterial({ map: screenTexture, toneMapped: false }),
+    // Over-bright so tone mapping blooms it into a phosphor glow.
+    new THREE.MeshBasicMaterial({ map: screenTexture, color: new THREE.Color(1.9, 1.75, 1.45) }),
   );
-  screen.scale.setScalar(unit * 0.64);
-  screen.position.copy(logo).addScaledVector(front, -unit * 0.1).setY(box.min.y + unit * 0.66);
+  screen.scale.setScalar(unit * 0.55);
+  screen.position.copy(logo).addScaledVector(front, -unit * 0.07).setY(box.min.y + unit * 0.66);
   screen.lookAt(screen.position.clone().add(front).add(new THREE.Vector3(0, 0.12, 0)));
   scene.add(screen);
+  const halo = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: radialGlow(), color: "#ffd9a0", blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, opacity: 0.3 }),
+  );
+  halo.scale.set(unit * 1.1, unit * 0.9, 1);
+  halo.position.copy(screen.position).addScaledVector(front, unit * 0.02);
+  scene.add(halo);
 
   let shown = -1;
   const drawScreen = (index: number) => {
@@ -197,8 +219,14 @@ export async function createHero(ctx: StageContext): Promise<Stage> {
     mesh.lookAt(mesh.position.clone().add(front));
     scene.add(mesh);
   });
+  // Low cloud bank the computer sits in.
+  const floor = smokeLayer(smoke, unit * 9, 0.16);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.copy(center).setY(box.min.y + unit * 0.02);
+  scene.add(floor);
+  smokes.push({ mesh: floor, speed: 0.01, y: 0 });
 
-  const key = new THREE.SpotLight("#fff1d6", 60, 0, 0.6, 0.6);
+  const key = new THREE.SpotLight("#fff1d6", 30, 0, 0.6, 0.6);
   key.position.copy(at(2, -1.2, 1.6));
   key.target.position.copy(center);
   scene.add(key, key.target, new THREE.AmbientLight("#9aa0c0", 0.5));
@@ -207,8 +235,8 @@ export async function createHero(ctx: StageContext): Promise<Stage> {
   scene.add(glow);
 
   const camera = makeCamera(32);
-  const look = at(0, -0.62, 0.02);
-  const start = at(3.3, 0.55, 0.3);
+  const look = at(0, -0.6, -0.02);
+  const start = at(3.15, 0.5, 0.3);
   const zoom = screen.position.clone().addScaledVector(front, unit * 0.75);
   const pos = new THREE.Vector3();
   const target = new THREE.Vector3();
@@ -292,7 +320,7 @@ export function createWork(ctx: StageContext): Stage {
   scene.add(tilt);
 
   const camera = makeCamera(38);
-  camera.position.set(0, 0.5, 8.2);
+  camera.position.set(0, 0.45, 7.6);
   camera.lookAt(0, 0, 0);
   let spin = 0;
 
@@ -301,7 +329,7 @@ export function createWork(ctx: StageContext): Stage {
     camera,
     frame: 1,
     resize(aspect) {
-      fitFov(camera, 38, aspect, 1.5);
+      fitFov(camera, 38, aspect, 1.6);
     },
     update({ progress, delta, pointer }) {
       // Scroll steps the reel so each project lands facing the camera in turn.
@@ -383,49 +411,73 @@ export async function createOffice(ctx: StageContext): Promise<Stage> {
   };
 }
 
-/* ---------- Golden tie: the deal-closer ---------- */
+/* ---------- Golden tie: hanging in front of the bank vault ---------- */
 
 export async function createTie(ctx: StageContext): Promise<Stage> {
-  const gltf = await ctx.gltf.loadAsync(`${ASSETS}/models/tie.glb`);
-  const tie = gltf.scene;
-  const gold = new THREE.MeshStandardMaterial({ color: "#e5b84c", metalness: 1, roughness: 0.28 });
+  const [tieGltf, bankGltf] = await Promise.all([
+    ctx.gltf.loadAsync(`${ASSETS}/models/tie.glb`),
+    ctx.gltf.loadAsync(`${ASSETS}/models/bank.glb`),
+  ]);
+
+  const vault = bankGltf.scene;
+  const steel = new THREE.MeshStandardMaterial({ color: "#7d76a6", metalness: 0.45, roughness: 0.45 });
+  vault.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.material = steel;
+  });
+  vault.getObjectByName("render-plane")?.removeFromParent();
+  const door = new THREE.Box3().setFromObject(vault.getObjectByName("door") ?? vault);
+  const doorCenter = door.getCenter(new THREE.Vector3());
+  const doorSize = door.getSize(new THREE.Vector3());
+  // The wheel and handles face +z; the inner ring faces the other way.
+  const viewSide = 1;
+
+  const tie = tieGltf.scene;
+  const gold = new THREE.MeshStandardMaterial({ color: "#b8901c", metalness: 1, roughness: 0.18 });
   tie.traverse((o) => {
     if (o instanceof THREE.Mesh) o.material = gold;
   });
-  const box = new THREE.Box3().setFromObject(tie);
-  const size = box.getSize(new THREE.Vector3());
-  tie.position.sub(box.getCenter(new THREE.Vector3()));
+  const tieBox = new THREE.Box3().setFromObject(tie);
+  tie.position.sub(tieBox.getCenter(new THREE.Vector3()));
+  const tieHeight = tieBox.max.y - tieBox.min.y;
   const pivot = new THREE.Group();
-  pivot.scale.setScalar(3 / Math.max(size.x, size.y, size.z));
+  const baseScale = (doorSize.y * 0.75) / tieHeight;
+  pivot.scale.setScalar(baseScale);
   pivot.add(tie);
+  pivot.position.set(doorCenter.x - doorSize.y * 0.04, doorCenter.y - doorSize.y * 0.12, doorCenter.z + viewSide * doorSize.y * 0.35);
 
   const scene = new THREE.Scene();
-  scene.background = verticalGradient([
-    [0, "#0d0e12"],
-    [1, "#22252c"],
-  ]);
+  scene.background = new THREE.Color("#4a4560");
   scene.environment = ctx.environment;
-  scene.environmentIntensity = 1.2;
-  const key = new THREE.SpotLight("#fff2cc", 90, 0, 0.5, 0.5);
-  key.position.set(2, 4, 4);
-  scene.add(pivot, key);
+  scene.environmentIntensity = 0.45;
+  scene.add(vault, pivot, new THREE.HemisphereLight("#cfc8f0", "#2f2a40", 1.1));
+  const key = new THREE.DirectionalLight("#fff0d0", 2.2);
+  key.position.set(doorCenter.x - doorSize.y, doorCenter.y + doorSize.y, doorCenter.z + viewSide * doorSize.y * 2);
+  scene.add(key);
+  const sparkle = new THREE.PointLight("#fff2c4", 30, doorSize.y * 2, 1.5);
+  sparkle.position.copy(pivot.position).add(new THREE.Vector3(-doorSize.y * 0.2, doorSize.y * 0.3, viewSide * doorSize.y * 0.3));
+  scene.add(sparkle);
 
   const camera = makeCamera(35);
-  camera.position.set(0, 0, 6.5);
+  const distance = doorSize.y * 1.55;
 
   return {
     scene,
     camera,
     frame: 1,
     resize(aspect) {
-      fitFov(camera, 35, aspect, 0.8);
+      fitFov(camera, 35, aspect, 1.4);
     },
     update({ progress, time, delta, pointer }) {
-      pivot.rotation.y = time * 0.4 + progress * Math.PI * 2;
-      pivot.rotation.x = damp(pivot.rotation.x, pointer.y * 0.3, 3, delta);
-      pivot.position.y = Math.sin(time * 0.8) * 0.08;
-      const s = 0.6 + THREE.MathUtils.smoothstep(progress, 0, 0.35) * 0.4;
-      pivot.scale.setScalar((3 / Math.max(size.x, size.y, size.z)) * s);
+      pivot.rotation.y = Math.sin(time * 0.6) * 0.35 + progress * Math.PI * 2;
+      pivot.rotation.z = Math.sin(time * 0.9) * 0.04;
+      // Push in on the tie as the section scrolls.
+      const d = distance * (1 - THREE.MathUtils.smoothstep(progress, 0, 1) * 0.35);
+      camera.position.set(
+        damp(camera.position.x, doorCenter.x + pointer.x * doorSize.y * 0.06, 3, delta),
+        damp(camera.position.y, doorCenter.y + pointer.y * doorSize.y * 0.04, 3, delta),
+        doorCenter.z + viewSide * d,
+      );
+      camera.lookAt(doorCenter);
     },
   };
 }
