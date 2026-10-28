@@ -54,10 +54,11 @@ export default function HomePage() {
       <div
         id="scroll-container"
         ref={scrollContainerRef}
-        className="fixed inset-0 w-screen h-screen overflow-y-auto overflow-x-hidden z-30 touch-pan-y"
+        className="fixed inset-0 w-screen h-screen overflow-y-auto overflow-x-hidden overscroll-none z-40 touch-pan-y pointer-events-auto"
         tabIndex={-1}
       >
         <div
+          id="scroll-track"
           style={{ height: `${TOTAL_SCROLL_PAGES * 100}vh`, width: "100%" }}
           aria-hidden="true"
         />

@@ -337,7 +337,7 @@ export function ShaderCanvas({
     gltfLoader.load("/models/bank.glb", (gltf) => {
       bankModel = gltf.scene;
       bankModel.scale.set(0.14, 0.14, 0.14);
-      bankModel.position.set(0, -0.4, -1.0);
+      bankModel.position.set(0, -0.45, 0.0);
 
       // Texture materials for bank walls & metal
       const wallTex = textureLoader.load("/textures/bank_wall.webp");
@@ -603,24 +603,20 @@ export function ShaderCanvas({
             }
           }
 
-          // Golden Tie glides forward into the vault
+          // Golden Tie floats and glides smoothly into the vault
           if (tieModel) {
-            let uTie = tVault;
-            if (uTie > 0.5) {
-              uTie = 0.5 + (1 - Math.pow(1 - (uTie - 0.5) / 0.5, 4.5)) * 0.1;
-            }
-            tieModel.position.z = 7 - uTie * 25 - 5;
+            tieModel.position.set(0, 0.05, 2.2 - tVault * 2.5);
             tieModel.rotation.y += delta * 1.2;
             tieModel.rotation.z = Math.sin(now * 0.003) * 0.1;
           }
 
-          // Camera moves forward into the vault
+          // Camera smoothly approaches the bank vault as the door swings open
           mainCamera.position.set(
             mouse.x * 0.25,
-            mouse.y * 0.25 - 0.4,
-            7.0 - tVault * 22
+            -0.2 - tVault * 0.15 + mouse.y * 0.2,
+            4.2 - tVault * 3.6
           );
-          mainCamera.lookAt(mouse.x * 0.25, mouse.y * 0.25 - 0.4, -20);
+          mainCamera.lookAt(0, -0.3, -5);
           crtMaterial.uniforms.uDistortion.value = 0.22;
         }
         // 6. CONTACT ($p \ge 18.84$)
@@ -677,14 +673,13 @@ export function ShaderCanvas({
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 w-screen h-screen z-40 pointer-events-none"
+      className="fixed inset-0 w-screen h-screen z-10 pointer-events-none select-none"
     >
-      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", pointerEvents: "auto" }}>
-        <div className="r3f-canvas-container" style={{ width: "100%", height: "100%" }}>
+      <div className="relative w-full h-full overflow-hidden pointer-events-none">
+        <div className="r3f-canvas-container w-full h-full pointer-events-none">
           <canvas
             ref={canvasRef}
-            className="r3f-canvas"
-            style={{ display: "block", width: "100%", height: "100%" }}
+            className="r3f-canvas block w-full h-full pointer-events-none"
           />
         </div>
       </div>
