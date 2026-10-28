@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Studio — Creative Development Studio",
+  title: "4CE — Creative Development Studio",
   description:
     "Empowering Your Business with Next-Generation Interactive 3D and AI Solutions. Working with Brands and Agencies Worldwide.",
   metadataBase: new URL("http://localhost:3000"),
@@ -17,16 +17,16 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
-    title: "Studio — Creative Development Studio",
+    title: "4CE — Creative Development Studio",
     description:
       "Empowering Your Business with Next-Generation Interactive 3D and AI Solutions. Working with Brands and Agencies Worldwide.",
     url: "/",
-    siteName: "Studio Development",
+    siteName: "4CE",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Studio — Creative Development Studio",
+    title: "4CE — Creative Development Studio",
     description:
       "Empowering Your Business with Next-Generation Interactive 3D and AI Solutions. Working with Brands and Agencies Worldwide.",
   },
@@ -46,7 +46,7 @@ export default function RootLayout({
         />
         <meta name="theme-color" content="#000000" />
       </head>
-      <body className="stix_two_text_a3385497-module__eDuTOG__variable font-stix bg-black overflow-hidden overscroll-none select-none">
+      <body className="font-stix bg-black antialiased">
         {children}
       </body>
     </html>

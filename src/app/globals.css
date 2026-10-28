@@ -74,13 +74,8 @@
 }
 
 html, body {
-  width: 100%;
-  height: calc(var(--vh, 1vh) * 100);
   background-color: #000;
   margin: 0;
-  overflow: hidden;
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 body {
@@ -137,4 +132,67 @@ body {
   top: 16px;
   left: 16px;
   overflow: visible;
+}
+
+.nav-link {
+  text-underline-offset: 6px;
+}
+
+.nav-link:hover,
+.nav-link:focus-visible {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid #fcf9f3;
+  outline-offset: 3px;
+}
+
+#about :focus-visible {
+  outline-color: #1b1b1b;
+}
+
+.paper-grain {
+  background-image: url("/sites/shader-se/textures/grunge.webp");
+  background-size: 600px;
+  mix-blend-mode: multiply;
+  opacity: 0.18;
+}
+
+/* Boot screen: CRT scanlines, then collapses to a line like a tube switching off. */
+.boot {
+  transform-origin: center;
+  transition: transform 0.45s cubic-bezier(0.7, 0, 0.84, 0), opacity 0.2s linear 0.4s, filter 0.45s;
+}
+
+.boot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 3px);
+}
+
+.boot-off {
+  transform: scaleY(0.004);
+  filter: brightness(3);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot-stripes {
+  border-radius: 50%;
+  background: repeating-linear-gradient(to bottom, #efe7d2 0 9%, transparent 9% 15%);
+  clip-path: inset(0 0 0 0 round 50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot {
+    transition: opacity 0.2s linear;
+  }
+
+  .boot-off {
+    transform: none;
+    filter: none;
+  }
 }
