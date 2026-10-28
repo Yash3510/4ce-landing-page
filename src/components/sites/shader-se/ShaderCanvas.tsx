@@ -8,7 +8,7 @@ import { CRTShader } from "@/lib/shader-se/crtShader";
 import { PROJECTS } from "@/lib/shader-se/projects";
 
 interface ShaderCanvasProps {
-  scrollProgress: number; // In page units: 0 to ~22.16
+  scrollProgress: number; // 0 to ~22.16
   subPage?: string | null;
   onSectionChange?: (section: string) => void;
   onLoaded?: () => void;
@@ -32,22 +32,23 @@ export function ShaderCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Renderer
+    // 1. Renderer Setup
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: false,
       alpha: false,
       powerPreference: "high-performance",
     });
+    const dpr = Math.min(window.devicePixelRatio, 1.5);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(dpr);
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = 1.0;
 
-    // Offscreen render target for the 3D scene
+    // Offscreen render target for the 3D scene before CRT pass
     const renderTarget = new THREE.WebGLRenderTarget(
-      window.innerWidth * Math.min(window.devicePixelRatio, 1.5),
-      window.innerHeight * Math.min(window.devicePixelRatio, 1.5),
+      window.innerWidth * dpr,
+      window.innerHeight * dpr,
       {
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
@@ -55,7 +56,7 @@ export function ShaderCanvas({
       }
     );
 
-    // 1. Post-Processing CRT Setup
+    // 2. Post-Processing CRT Setup
     const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const postScene = new THREE.Scene();
     const crtMaterial = new THREE.ShaderMaterial({
@@ -66,7 +67,6 @@ export function ShaderCanvas({
     crtMaterial.uniforms.tDiffuse.value = renderTarget.texture;
     crtMaterial.uniforms.uDimensions.value.set(window.innerWidth, window.innerHeight);
 
-    // Load boot screen texture
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load("/textures/boot_screen.png", (tex) => {
       tex.wrapS = THREE.ClampToEdgeWrapping;
@@ -79,36 +79,18 @@ export function ShaderCanvas({
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), crtMaterial);
     postScene.add(quad);
 
-    // 2. Main 3D Scenes Setup
+    // 3. Main 3D Scene & Perspective Camera
     const mainCamera = new THREE.PerspectiveCamera(
       50,
       window.innerWidth / window.innerHeight,
       0.1,
-      100
+      250
     );
     mainCamera.position.set(0, 0.2, 4.5);
     mainCamera.lookAt(0, 0, 0);
 
     const mainScene = new THREE.Scene();
-    mainScene.background = new THREE.Color(0x0a0a0c);
-
-    // Global Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    mainScene.add(ambientLight);
-
-    const dirLight1 = new THREE.DirectionalLight(0xffeedd, 2.5);
-    dirLight1.position.set(4, 5, 4);
-    mainScene.add(dirLight1);
-
-    const dirLight2 = new THREE.DirectionalLight(0x7799ff, 1.5);
-    dirLight2.position.set(-4, 2, 3);
-    mainScene.add(dirLight2);
-
-    // Loader & Assets with DRACO decompression
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath("/draco/");
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.setDRACOLoader(dracoLoader);
+    mainScene.background = new THREE.Color(0x08080a);
 
     // Scene Groups
     const heroGroup = new THREE.Group();
@@ -127,23 +109,36 @@ export function ShaderCanvas({
     mainScene.add(contactGroup);
     mainScene.add(subPageGroup);
 
-    // Initial visibility
-    projectsGroup.position.set(0, -100, 0);
-    officeGroup.position.set(0, -200, 0);
-    aboutGroup.position.set(0, -300, 0);
-    goldenTieGroup.position.set(0, -400, 0);
-    contactGroup.position.set(0, -500, 0);
-    subPageGroup.position.set(0, -600, 0);
+    // Global Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
+    mainScene.add(ambientLight);
 
-    // --- Hero Scene: Computer Model ---
+    const keyLight = new THREE.DirectionalLight(0xfff5ea, 2.5);
+    keyLight.position.set(5, 8, 6);
+    mainScene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x7090ff, 1.4);
+    fillLight.position.set(-6, 3, 4);
+    mainScene.add(fillLight);
+
+    // Model Loader with DRACO decompression
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath("/draco/");
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
+
+    // -------------------------------------------------------------
+    // SECTION 1: HERO (Computer Model & Smoke Atmosphere)
+    // -------------------------------------------------------------
     let computerModel: THREE.Object3D | null = null;
+    let screenMesh: THREE.Mesh | null = null;
+
     gltfLoader.load("/models/computer.glb", (gltf) => {
       computerModel = gltf.scene;
       computerModel.scale.set(0.14, 0.14, 0.14);
       computerModel.position.set(-1.1, -1.4, 0);
       computerModel.rotation.set(0, Math.PI, 0);
 
-      // Texture computer screen and background
       textureLoader.load("/textures/computer.webp", (screenTex) => {
         screenTex.colorSpace = THREE.SRGBColorSpace;
         computerModel?.traverse((child) => {
@@ -163,7 +158,7 @@ export function ShaderCanvas({
         screenGroup.position.set(-22, 11, 2);
         screenGroup.rotation.y = Math.PI - 0.735;
 
-        const screenMesh = new THREE.Mesh(
+        screenMesh = new THREE.Mesh(
           new THREE.PlaneGeometry(10.15, 7.875),
           new THREE.MeshBasicMaterial({ map: screenTex })
         );
@@ -176,38 +171,51 @@ export function ShaderCanvas({
       heroGroup.add(computerModel);
     });
 
-    // Smoke Background Plane
+    // Atmospheric Smoke Plane
     textureLoader.load("/textures/smoke.webp", (smokeTex) => {
       smokeTex.wrapS = THREE.RepeatWrapping;
       smokeTex.wrapT = THREE.RepeatWrapping;
-      const smokeGeo = new THREE.PlaneGeometry(16, 10);
-      const smokeMat = new THREE.MeshBasicMaterial({
-        map: smokeTex,
-        transparent: true,
-        opacity: 0.35,
-        blending: THREE.AdditiveBlending,
-      });
-      const smokeMesh = new THREE.Mesh(smokeGeo, smokeMat);
+      const smokeMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(18, 12),
+        new THREE.MeshBasicMaterial({
+          map: smokeTex,
+          transparent: true,
+          opacity: 0.35,
+          blending: THREE.AdditiveBlending,
+        })
+      );
       smokeMesh.position.set(0, 0, -2);
       heroGroup.add(smokeMesh);
     });
 
-    // --- Projects Scene: 3D Cylindrical Film Strip Carousel ---
-    const carouselRadius = 4.2;
-    const cardWidth = 2.0;
-    const cardHeight = 1.35;
+    // -------------------------------------------------------------
+    // SECTION 2: PROJECTS (CatmullRomCurve3 Ribbon Filmstrip)
+    // -------------------------------------------------------------
+    const ribbonPoints = [
+      new THREE.Vector3(-150, -40, -150),
+      new THREE.Vector3(-90, -20, -35),
+      new THREE.Vector3(0, 0, 10),
+      new THREE.Vector3(90, 20, -35),
+      new THREE.Vector3(-49, 70, -211),
+      new THREE.Vector3(100, 180, -300),
+      new THREE.Vector3(-60, 200, -200),
+    ].map((p) => p.clone().multiplyScalar(0.04).multiply(new THREE.Vector3(1, 1, 0.8)));
+
+    const projectCurve = new THREE.CatmullRomCurve3(ribbonPoints, false, "chordal", 1);
     const projectCards: THREE.Mesh[] = [];
 
-    PROJECTS.forEach((project, idx) => {
-      const angle = (idx / PROJECTS.length) * Math.PI * 2;
-      const cardGeo = new THREE.PlaneGeometry(cardWidth, cardHeight);
+    PROJECTS.slice(0, 8).forEach((project, idx) => {
+      const t = idx / 7;
+      const pt = projectCurve.getPointAt(t);
+      const tangent = projectCurve.getTangentAt(t);
+
+      const cardGeo = new THREE.PlaneGeometry(1.8, 1.2);
       const cardMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,
-        roughness: 0.4,
-        metalness: 0.1,
+        roughness: 0.3,
+        metalness: 0.2,
       });
 
-      // Load thumbnail
       textureLoader.load(
         `/api/mux-image/${project.mux_playback_id}/w800-h600-fpreserve`,
         (tex) => {
@@ -217,8 +225,8 @@ export function ShaderCanvas({
         },
         undefined,
         () => {
-          // Fallback thumbnail
           textureLoader.load("/textures/thumb_fallback.png", (fb) => {
+            fb.colorSpace = THREE.SRGBColorSpace;
             cardMat.map = fb;
             cardMat.needsUpdate = true;
           });
@@ -226,81 +234,89 @@ export function ShaderCanvas({
       );
 
       const card = new THREE.Mesh(cardGeo, cardMat);
-      card.position.set(
-        Math.sin(angle) * carouselRadius,
-        0,
-        Math.cos(angle) * carouselRadius
-      );
-      card.rotation.y = angle + Math.PI;
+      card.position.copy(pt);
+      card.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent.clone().cross(new THREE.Vector3(0, 1, 0)).normalize());
       projectsGroup.add(card);
       projectCards.push(card);
     });
 
-    // --- Office Scene: Deskbox Grid ---
-    let deskboxMesh: THREE.Object3D | null = null;
+    // -------------------------------------------------------------
+    // SECTION 3: OFFICE (Deskbox Workstation Matrix)
+    // -------------------------------------------------------------
     gltfLoader.load("/models/deskbox.glb", (gltf) => {
-      deskboxMesh = gltf.scene;
-      const gridCount = 4;
-      const spacing = 2.6;
-      for (let x = -gridCount / 2; x < gridCount / 2; x++) {
-        for (let z = -gridCount / 2; z < gridCount / 2; z++) {
+      const deskboxMesh = gltf.scene;
+      const count = 4;
+      const spacing = 2.4;
+      for (let x = -count / 2; x < count / 2; x++) {
+        for (let z = -count / 2; z < count / 2; z++) {
           const clone = deskboxMesh.clone();
-          clone.position.set(x * spacing, -1.2, z * spacing - 3);
-          clone.scale.set(0.65, 0.65, 0.65);
+          clone.position.set(x * spacing, -1.0, z * spacing - 2);
+          clone.scale.set(0.6, 0.6, 0.6);
           officeGroup.add(clone);
         }
       }
     });
 
-    // --- About Us Scene: Paper Surface & Cutouts ---
-    const paperGeo = new THREE.PlaneGeometry(16, 12);
-    const paperMat = new THREE.MeshBasicMaterial({ color: 0xfcf9f3 });
-    const paperMesh = new THREE.Mesh(paperGeo, paperMat);
-    paperMesh.position.set(0, 0, 0);
+    // -------------------------------------------------------------
+    // SECTION 4: ABOUT US (Paper Surface & Shredder with Animated Cogs)
+    // -------------------------------------------------------------
+    const paperMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(16, 20),
+      new THREE.MeshBasicMaterial({ color: 0xfcf9f3 })
+    );
+    paperMesh.position.set(0, 0, -0.1);
     aboutGroup.add(paperMesh);
 
     // Team Cutouts
-    const cutoutTextures = [
-      { path: "/textures/jacob_presenting.webp", x: -2.2, y: 0.2, w: 2.2, h: 2.6 },
-      { path: "/textures/simon_presenting.webp", x: 2.2, y: 0.2, w: 2.2, h: 2.6 },
-      { path: "/textures/filip_footer_5.webp", x: 0, y: -0.8, w: 2.5, h: 2.8 },
+    const teamCutouts = [
+      { path: "/textures/jacob_presenting.webp", x: -2.0, y: 0.4, w: 2.0, h: 2.5 },
+      { path: "/textures/simon_presenting.webp", x: 2.0, y: 0.4, w: 2.0, h: 2.5 },
+      { path: "/textures/filip_footer_5.webp", x: 0, y: -0.6, w: 2.3, h: 2.7 },
     ];
-
-    cutoutTextures.forEach(({ path, x, y, w, h }) => {
+    teamCutouts.forEach(({ path, x, y, w, h }) => {
       textureLoader.load(path, (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
-        const mat = new THREE.MeshBasicMaterial({
-          map: tex,
-          transparent: true,
-        });
-        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-        mesh.position.set(x, y, 0.1);
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(w, h),
+          new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+        );
+        mesh.position.set(x, y, 0.05);
         aboutGroup.add(mesh);
       });
     });
 
-    // Models: phones & shredder
-    gltfLoader.load("/models/phones.glb", (gltf) => {
-      const phones = gltf.scene;
-      phones.position.set(2.5, -1.0, 0.5);
-      phones.scale.set(0.8, 0.8, 0.8);
-      aboutGroup.add(phones);
-    });
+    let shredderModel: THREE.Object3D | null = null;
+    let shredderCogs: THREE.Object3D | null = null;
 
     gltfLoader.load("/models/shredder.glb", (gltf) => {
-      const shredder = gltf.scene;
-      shredder.position.set(-2.5, -1.0, 0.5);
-      shredder.scale.set(0.8, 0.8, 0.8);
-      aboutGroup.add(shredder);
+      shredderModel = gltf.scene;
+      shredderModel.scale.set(0.65, 0.65, 0.65);
+      shredderModel.rotation.set(Math.PI / 2, 0, 0);
+      shredderModel.position.set(0, -1.8, 0.3);
+
+      shredderModel.traverse((child) => {
+        if (child.name === "cogs") {
+          shredderCogs = child;
+          if ((child as THREE.Mesh).isMesh) {
+            (child as THREE.Mesh).material = new THREE.MeshStandardMaterial({
+              color: 0x999999,
+              metalness: 0.95,
+              roughness: 0.2,
+            });
+          }
+        }
+      });
+      aboutGroup.add(shredderModel);
     });
 
-    // --- Golden Tie Scene: Floating Tie & Bank Vault ---
+    // -------------------------------------------------------------
+    // SECTION 5: GOLDEN TIE & BANK VAULT (AnimationMixer Unlocking)
+    // -------------------------------------------------------------
     let tieModel: THREE.Object3D | null = null;
     gltfLoader.load("/models/tie.glb", (gltf) => {
       tieModel = gltf.scene;
       tieModel.scale.set(1.4, 1.4, 1.4);
       tieModel.position.set(0, 0, 1.5);
-      // Give it gold shader material
       tieModel.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           (child as THREE.Mesh).material = new THREE.MeshStandardMaterial({
@@ -313,47 +329,124 @@ export function ShaderCanvas({
       goldenTieGroup.add(tieModel);
     });
 
+    let bankModel: THREE.Object3D | null = null;
+    let bankMixer: THREE.AnimationMixer | null = null;
+    let bankAction: THREE.AnimationAction | null = null;
+    let bankClip: THREE.AnimationClip | null = null;
+
     gltfLoader.load("/models/bank.glb", (gltf) => {
-      const bank = gltf.scene;
-      bank.position.set(0, -1.5, -2);
-      bank.scale.set(1.2, 1.2, 1.2);
-      goldenTieGroup.add(bank);
+      bankModel = gltf.scene;
+      bankModel.scale.set(0.14, 0.14, 0.14);
+      bankModel.position.set(0, -0.4, -1.0);
+
+      // Texture materials for bank walls & metal
+      const wallTex = textureLoader.load("/textures/bank_wall.webp");
+      wallTex.colorSpace = THREE.SRGBColorSpace;
+      wallTex.wrapS = THREE.RepeatWrapping;
+      wallTex.wrapT = THREE.RepeatWrapping;
+
+      const metalTex = textureLoader.load("/textures/bank_metal.webp");
+      metalTex.colorSpace = THREE.SRGBColorSpace;
+      metalTex.wrapS = THREE.RepeatWrapping;
+      metalTex.wrapT = THREE.RepeatWrapping;
+
+      bankModel.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          if (mesh.name.includes("wall")) {
+            mesh.material = new THREE.MeshStandardMaterial({
+              map: wallTex,
+              roughness: 0.85,
+              metalness: 0.4,
+            });
+          } else if (mesh.name !== "render-plane") {
+            mesh.material = new THREE.MeshStandardMaterial({
+              map: metalTex,
+              metalness: 0.95,
+              roughness: 0.25,
+            });
+          }
+        }
+      });
+
+      // AnimationMixer running the 'Scene' clip
+      if (gltf.animations.length > 0) {
+        bankClip = gltf.animations.find((a) => a.name === "Scene") || gltf.animations[0];
+        bankMixer = new THREE.AnimationMixer(bankModel);
+        bankAction = bankMixer.clipAction(bankClip);
+        bankAction.play();
+      }
+
+      goldenTieGroup.add(bankModel);
     });
 
-    // --- Contact Scene: Desk & Certificates ---
+    // -------------------------------------------------------------
+    // SECTION 6: CONTACT (Telephones with Emissive Lamps & Ring Wobble)
+    // -------------------------------------------------------------
+    let phonesModel: THREE.Object3D | null = null;
+    let redLampMat: THREE.MeshStandardMaterial | null = null;
+    let greenLampMat: THREE.MeshStandardMaterial | null = null;
+
+    gltfLoader.load("/models/phones.glb", (gltf) => {
+      phonesModel = gltf.scene;
+      phonesModel.scale.set(1.1, 1.1, 1.1);
+      phonesModel.rotation.set(0.3, Math.PI, 0);
+      phonesModel.position.set(0.9, -1.2, 0.5);
+
+      phonesModel.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          if (mesh.name === "phone-2-lamp-red") {
+            redLampMat = new THREE.MeshStandardMaterial({
+              color: 0xff1111,
+              emissive: 0xff0000,
+              emissiveIntensity: 1.0,
+            });
+            mesh.material = redLampMat;
+          } else if (mesh.name === "phone-2-lamp-green") {
+            greenLampMat = new THREE.MeshStandardMaterial({
+              color: 0x11ff33,
+              emissive: 0x00ff22,
+              emissiveIntensity: 1.5,
+            });
+            mesh.material = greenLampMat;
+          }
+        }
+      });
+
+      contactGroup.add(phonesModel);
+    });
+
+    // Certificate Plaque
     textureLoader.load("/textures/footer_certificate.png", (certTex) => {
       certTex.colorSpace = THREE.SRGBColorSpace;
-      const certMat = new THREE.MeshBasicMaterial({
-        map: certTex,
-        transparent: true,
-      });
-      const certMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 3.2), certMat);
-      certMesh.position.set(0, 0.3, 0);
+      const certMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.4, 3.1),
+        new THREE.MeshBasicMaterial({ map: certTex, transparent: true })
+      );
+      certMesh.position.set(-1.8, 0.2, 0.2);
       contactGroup.add(certMesh);
     });
 
-    // --- Subpage Scene (/accessibility-statement) ---
+    // Subpage View
     textureLoader.load("/textures/accessibility_statement.webp", (a11yTex) => {
       a11yTex.colorSpace = THREE.SRGBColorSpace;
-      const a11yPaper = new THREE.Mesh(
+      const paper = new THREE.Mesh(
         new THREE.PlaneGeometry(16, 12),
         new THREE.MeshBasicMaterial({ color: 0xfcf9f3 })
       );
-      subPageGroup.add(a11yPaper);
-
-      const headerMesh = new THREE.Mesh(
+      subPageGroup.add(paper);
+      const titleMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(3.6, 1.2),
         new THREE.MeshBasicMaterial({ map: a11yTex, transparent: true })
       );
-      headerMesh.position.set(0, 2.0, 0.1);
-      subPageGroup.add(headerMesh);
+      titleMesh.position.set(0, 2.0, 0.1);
+      subPageGroup.add(titleMesh);
     });
 
-    // Loading Progress Simulation
-    let bootProgress = 0;
-    const bootStartTime = performance.now();
-
-    // Mouse Tracking for Parallax Tilt
+    // -------------------------------------------------------------
+    // INTERACTION & ANIMATION LOOP
+    // -------------------------------------------------------------
     const mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
     const onMouseMove = (e: MouseEvent) => {
       mouse.targetX = (e.clientX / window.innerWidth) * 2 - 1;
@@ -361,22 +454,19 @@ export function ShaderCanvas({
     };
     window.addEventListener("mousemove", onMouseMove);
 
-    // Resize Handler
     const onResize = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
       renderer.setSize(w, h);
-      renderTarget.setSize(
-        w * Math.min(window.devicePixelRatio, 1.5),
-        h * Math.min(window.devicePixelRatio, 1.5)
-      );
+      renderTarget.setSize(w * dpr, h * dpr);
       mainCamera.aspect = w / h;
       mainCamera.updateProjectionMatrix();
       crtMaterial.uniforms.uDimensions.value.set(w, h);
     };
     window.addEventListener("resize", onResize);
 
-    // Main Animation Loop
+    let bootProgress = 0;
+    const bootStartTime = performance.now();
     let animationFrameId: number;
     let lastTime = performance.now();
 
@@ -389,7 +479,7 @@ export function ShaderCanvas({
 
       crtMaterial.uniforms.uTime.value += delta;
 
-      // Boot screen progression (takes ~1.2s to compile & load)
+      // Boot Screen Progression
       if (bootProgress < 100) {
         bootProgress = Math.min(100, (now - bootStartTime) / 12);
         crtMaterial.uniforms.uProgress.value = bootProgress;
@@ -401,13 +491,13 @@ export function ShaderCanvas({
         }
       }
 
-      // Mouse Parallax Smooth Interpolation
+      // Smooth Mouse Parallax Interpolation
       mouse.x += (mouse.targetX - mouse.x) * 0.05;
       mouse.y += (mouse.targetY - mouse.y) * 0.05;
 
-      const p = progressRef.current; // Current scroll position
+      const p = progressRef.current;
 
-      // Subpage Mode Check
+      // Subpage Mode
       if (subPage === "accessibility-statement") {
         subPageGroup.visible = true;
         heroGroup.visible = false;
@@ -416,109 +506,149 @@ export function ShaderCanvas({
         aboutGroup.visible = false;
         goldenTieGroup.visible = false;
         contactGroup.visible = false;
-
-        subPageGroup.position.set(0, 0, 0);
         mainCamera.position.set(0, 0, 5);
-        crtMaterial.uniforms.uDistortion.value = 0.12;
+        mainCamera.lookAt(0, 0, 0);
+        crtMaterial.uniforms.uDistortion.value = 0.08;
       } else {
         subPageGroup.visible = false;
-        heroGroup.visible = p <= 1.1;
-        projectsGroup.visible = p >= 0.85 && p <= 2.15;
-        officeGroup.visible = p >= 1.85 && p <= 3.95;
-        aboutGroup.visible = p >= 3.65 && p <= 11.3;
-        goldenTieGroup.visible = p >= 11.0 && p <= 19.0;
-        contactGroup.visible = p >= 18.6;
 
-        // Section Transitions according to scroll
-        // Hero: [0, 1.0]
+        // Group visibility ranges with smooth cross-fading
+        heroGroup.visible = p <= 1.2;
+        projectsGroup.visible = p >= 0.7 && p <= 2.3;
+        officeGroup.visible = p >= 1.7 && p <= 4.0;
+        aboutGroup.visible = p >= 3.6 && p <= 11.5;
+        goldenTieGroup.visible = p >= 10.8 && p <= 19.2;
+        contactGroup.visible = p >= 18.5;
+
+        // 1. HERO ($p \in [0, 1.0]$)
         if (p < 1.0) {
           onSectionChange?.("hero");
-          heroGroup.position.set(0, -p * 6, 0);
-          projectsGroup.position.set(0, Math.max(0, (1.0 - p) * 12), 0);
-          officeGroup.position.set(0, -200, 0);
-          aboutGroup.position.set(0, -300, 0);
-          goldenTieGroup.position.set(0, -400, 0);
-          contactGroup.position.set(0, -500, 0);
+          const u = 1 - Math.pow(1 - Math.min(p / 0.85, 1.0), 1.4);
+
+          // Camera zooms smoothly straight into the CRT computer display
+          mainCamera.position.set(
+            THREE.MathUtils.lerp(0, 0, u) + mouse.x * (1 - u) * 0.25,
+            THREE.MathUtils.lerp(0.2, -0.05, u) + mouse.y * (1 - u) * 0.2,
+            THREE.MathUtils.lerp(4.5, 0.95, u)
+          );
+          mainCamera.lookAt(0, -0.05 * u, 0);
 
           if (computerModel) {
-            computerModel.rotation.y = Math.PI + mouse.x * 0.12;
-            computerModel.rotation.x = -mouse.y * 0.08;
+            computerModel.rotation.y = Math.PI + mouse.x * 0.12 * (1 - u);
+            computerModel.rotation.x = -mouse.y * 0.08 * (1 - u);
           }
-          crtMaterial.uniforms.uDistortion.value = 0.22;
+          crtMaterial.uniforms.uDistortion.value = THREE.MathUtils.lerp(0.22, 0.20, u);
         }
-        // Projects Carousel: [1.0, 2.0]
+        // 2. PROJECTS ($p \in [1.0, 2.0]$)
         else if (p < 2.0) {
           onSectionChange?.("projects");
-          heroGroup.position.set(0, -100, 0);
           const t = p - 1.0;
-          projectsGroup.position.set(0, 0, 0);
-          projectsGroup.rotation.y = t * Math.PI * 2;
-          officeGroup.position.set(0, (1.0 - t) * 6, 0);
-          aboutGroup.position.set(0, -300, 0);
-          goldenTieGroup.position.set(0, -400, 0);
-          contactGroup.position.set(0, -500, 0);
 
-          crtMaterial.uniforms.uDistortion.value = 0.24;
+          // Camera follows along the filmstrip ribbon path
+          mainCamera.position.set(
+            mouse.x * 0.35,
+            -t * 0.8 + mouse.y * 0.25,
+            5.0 - t * 1.5
+          );
+          mainCamera.lookAt(0, -t * 0.5, 0);
+
+          // Cards float with gentle responsive angle
+          projectCards.forEach((card, i) => {
+            card.position.y += Math.sin(now * 0.002 + i) * 0.0008;
+          });
+          crtMaterial.uniforms.uDistortion.value = 0.20;
         }
-        // Office Grid: [2.0, 3.8]
+        // 3. OFFICE ($p \in [2.0, 3.8]$)
         else if (p < 3.8) {
           onSectionChange?.("office");
-          heroGroup.position.set(0, -100, 0);
-          projectsGroup.position.set(0, -100, 0);
-          officeGroup.position.set(0, 0, 0);
-          aboutGroup.position.set(0, (3.8 - p) * 4, 0);
-          goldenTieGroup.position.set(0, -400, 0);
-          contactGroup.position.set(0, -500, 0);
+          const tOff = (p - 2.0) / 1.8;
 
-          mainCamera.position.set(mouse.x * 0.5, 4.0 - (p - 2.0) * 1.5, 7.0 - (p - 2.0) * 2);
+          // Camera descends over workstation matrix looking down
+          mainCamera.position.set(
+            mouse.x * 0.4,
+            3.2 - tOff * 1.6,
+            5.0 - tOff * 1.5
+          );
           mainCamera.lookAt(0, 0, 0);
           crtMaterial.uniforms.uDistortion.value = 0.18;
         }
-        // About Us: [3.8, 11.14]
+        // 4. ABOUT US ($p \in [3.8, 11.14]$)
         else if (p < 11.14) {
           onSectionChange?.("about-us");
-          heroGroup.position.set(0, -100, 0);
-          projectsGroup.position.set(0, -100, 0);
-          officeGroup.position.set(0, -200, 0);
-          aboutGroup.position.set(0, 0, 0);
-          goldenTieGroup.position.set(0, -400, 0);
-          contactGroup.position.set(0, -500, 0);
+          const aboutProg = Math.max(0, Math.min(1, (p - 3.8) / 7.34));
 
-          mainCamera.position.set(0, 0, 5);
+          mainCamera.position.set(mouse.x * 0.15, mouse.y * 0.15, 5.2);
           mainCamera.lookAt(0, 0, 0);
-          crtMaterial.uniforms.uDistortion.value = 0.12;
+
+          // Shredder cogs rotate as you scroll!
+          if (shredderCogs) {
+            shredderCogs.rotation.x = -p * Math.PI * 4;
+          }
+          if (shredderModel) {
+            shredderModel.position.y = (aboutProg - 0.45) * 3.6;
+          }
+          crtMaterial.uniforms.uDistortion.value = 0.08;
         }
-        // Golden Tie Reveal & Golden Tie: [11.14, 18.84]
+        // 5. GOLDEN TIE & BANK VAULT ($p \in [11.14, 18.84]$)
         else if (p < 18.84) {
           onSectionChange?.("golden-tie");
-          heroGroup.position.set(0, -100, 0);
-          projectsGroup.position.set(0, -100, 0);
-          officeGroup.position.set(0, -200, 0);
-          aboutGroup.position.set(0, -300, 0);
-          goldenTieGroup.position.set(0, 0, 0);
-          contactGroup.position.set(0, -500, 0);
+          const tVault = Math.max(0, Math.min(1, (p - 11.14) / 4.2));
 
-          if (tieModel) {
-            tieModel.rotation.y += delta * 0.8;
-            tieModel.position.y = Math.sin(now * 0.002) * 0.15;
+          // Vault Door AnimationMixer: handles spin, rods retract, door opens wide!
+          if (bankMixer && bankClip) {
+            const doorProg = Math.max(0, Math.min(1, (tVault + 0.08) / 0.85));
+            if (bankAction) {
+              bankAction.time = doorProg * bankClip.duration;
+              bankMixer.update(0);
+            }
           }
-          mainCamera.position.set(mouse.x * 0.4, 0, 5);
-          mainCamera.lookAt(0, 0, 0);
+
+          // Golden Tie glides forward into the vault
+          if (tieModel) {
+            let uTie = tVault;
+            if (uTie > 0.5) {
+              uTie = 0.5 + (1 - Math.pow(1 - (uTie - 0.5) / 0.5, 4.5)) * 0.1;
+            }
+            tieModel.position.z = 7 - uTie * 25 - 5;
+            tieModel.rotation.y += delta * 1.2;
+            tieModel.rotation.z = Math.sin(now * 0.003) * 0.1;
+          }
+
+          // Camera moves forward into the vault
+          mainCamera.position.set(
+            mouse.x * 0.25,
+            mouse.y * 0.25 - 0.4,
+            7.0 - tVault * 22
+          );
+          mainCamera.lookAt(mouse.x * 0.25, mouse.y * 0.25 - 0.4, -20);
           crtMaterial.uniforms.uDistortion.value = 0.22;
         }
-        // Contact: [18.84, 22.16]
+        // 6. CONTACT ($p \ge 18.84$)
         else {
           onSectionChange?.("contact");
-          heroGroup.position.set(0, -100, 0);
-          projectsGroup.position.set(0, -100, 0);
-          officeGroup.position.set(0, -200, 0);
-          aboutGroup.position.set(0, -300, 0);
-          goldenTieGroup.position.set(0, -400, 0);
-          contactGroup.position.set(0, 0, 0);
+          const tCon = Math.max(0, Math.min(1, (p - 18.84) / 3.32));
 
-          mainCamera.position.set(0, 0, 5);
-          mainCamera.lookAt(0, 0, 0);
-          crtMaterial.uniforms.uDistortion.value = 0.15;
+          mainCamera.position.set(
+            mouse.x * 0.2,
+            mouse.y * 0.2 - tCon * 0.4,
+            5.0
+          );
+          mainCamera.lookAt(0, -tCon * 0.4, 0);
+
+          // Telephones ringing wobble & blinking indicator lights
+          if (phonesModel) {
+            const ring = Math.sin(now * 0.035) * 0.015 * (Math.sin(now * 0.005) > 0 ? 1 : 0.2);
+            phonesModel.rotation.z = ring;
+            phonesModel.position.x = 0.9 + ring * 0.4;
+          }
+          if (redLampMat) {
+            redLampMat.emissiveIntensity = Math.sin(now * 0.009) > 0 ? 3.0 : 0.2;
+          }
+          if (greenLampMat) {
+            greenLampMat.emissiveIntensity = 2.0;
+          }
+
+          crtMaterial.uniforms.uDistortion.value = 0.16;
         }
       }
 
