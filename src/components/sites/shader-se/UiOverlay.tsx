@@ -66,7 +66,7 @@ export function UiOverlay({ currentSection, isDark = false, onNavigate }: UiOver
           type="button"
           onClick={() => handleNavClick("hero")}
           className="flex items-center gap-3 cursor-pointer group focus:outline-none"
-          aria-label="Shader — Home"
+          aria-label="4CE — Home"
         >
           <div className="w-8 h-8 relative flex items-center justify-center">
             {/* SVG Logo mark */}
@@ -78,7 +78,7 @@ export function UiOverlay({ currentSection, isDark = false, onNavigate }: UiOver
             </svg>
           </div>
           <span className={`text-sm md:text-base font-semibold tracking-widest ${textColor}`}>
-            SHADER
+            4CE
           </span>
         </button>
 
@@ -145,7 +145,7 @@ export function UiOverlay({ currentSection, isDark = false, onNavigate }: UiOver
       {menuOpen && (
         <div className="fixed inset-0 bg-black/95 z-50 p-8 flex flex-col justify-between pointer-events-auto backdrop-blur-lg">
           <div className="flex justify-between items-center">
-            <span className="text-white text-base font-bold tracking-widest">SHADER</span>
+            <span className="text-white text-base font-bold tracking-widest">4CE</span>
             <button
               type="button"
               onClick={() => setMenuOpen(false)}
