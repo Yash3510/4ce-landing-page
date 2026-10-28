@@ -66,7 +66,7 @@ export function UiOverlay({ currentSection, isDark = false, onNavigate }: UiOver
           type="button"
           onClick={() => handleNavClick("hero")}
           className="flex items-center gap-3 cursor-pointer group focus:outline-none"
-          aria-label="4CE — Home"
+          aria-label="Shader — Home"
         >
           <div className="w-8 h-8 relative flex items-center justify-center">
             {/* SVG Logo mark */}
@@ -78,7 +78,7 @@ export function UiOverlay({ currentSection, isDark = false, onNavigate }: UiOver
             </svg>
           </div>
           <span className={`text-sm md:text-base font-semibold tracking-widest ${textColor}`}>
-            4CE
+            SHADER
           </span>
         </button>
 
