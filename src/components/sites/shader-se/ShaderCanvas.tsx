@@ -136,8 +136,8 @@ export function ShaderCanvas({
     gltfLoader.load("/models/computer.glb", (gltf) => {
       computerModel = gltf.scene;
       computerModel.scale.set(0.14, 0.14, 0.14);
-      computerModel.position.set(-1.1, -1.4, 0);
-      computerModel.rotation.set(0, Math.PI, 0);
+      computerModel.position.set(0.65, -1.35, 0.4);
+      computerModel.rotation.set(0, Math.PI - 0.25, 0);
 
       textureLoader.load("/textures/computer.webp", (screenTex) => {
         screenTex.colorSpace = THREE.SRGBColorSpace;
@@ -167,6 +167,11 @@ export function ShaderCanvas({
         screenGroup.add(screenMesh);
         computerModel?.add(screenGroup);
       });
+
+      // Luminous CRT glow light casting on keyboard and desk
+      const screenPointLight = new THREE.PointLight(0xfff6ea, 3.8, 5.0);
+      screenPointLight.position.set(0.65, -0.6, 1.4);
+      heroGroup.add(screenPointLight);
 
       heroGroup.add(computerModel);
     });
@@ -199,10 +204,61 @@ export function ShaderCanvas({
       new THREE.Vector3(-49, 70, -211),
       new THREE.Vector3(100, 180, -300),
       new THREE.Vector3(-60, 200, -200),
-    ].map((p) => p.clone().multiplyScalar(0.04).multiply(new THREE.Vector3(1, 1, 0.8)));
+    ].map((p) => p.clone().multiplyScalar(0.045).multiply(new THREE.Vector3(1, 1, 0.8)));
 
     const projectCurve = new THREE.CatmullRomCurve3(ribbonPoints, false, "chordal", 1);
     const projectCards: THREE.Mesh[] = [];
+
+    // Continuous 3D Filmstrip Ribbon Geometry along the Spline
+    const ribbonGeo = new THREE.BufferGeometry();
+    const ribbonVerts: number[] = [];
+    const ribbonNormals: number[] = [];
+    const ribbonUvs: number[] = [];
+    const ribbonIndices: number[] = [];
+    const ribbonSubdivs = 160;
+    const ribbonHalfH = 0.75;
+
+    for (let i = 0; i <= ribbonSubdivs; i++) {
+      const alpha = i / ribbonSubdivs;
+      const pt = projectCurve.getPointAt(alpha);
+      const tangent = projectCurve.getTangentAt(alpha);
+      const up = new THREE.Vector3(0, 1, 0);
+      const normal = new THREE.Vector3().crossVectors(tangent, up).normalize();
+      if (normal.lengthSq() < 0.001) {
+        normal.crossVectors(tangent, new THREE.Vector3(0, 0, 1)).normalize();
+      }
+      const binormal = new THREE.Vector3().crossVectors(normal, tangent).normalize();
+
+      ribbonVerts.push(pt.x, pt.y - ribbonHalfH, pt.z);
+      ribbonVerts.push(pt.x, pt.y + ribbonHalfH, pt.z);
+
+      ribbonNormals.push(binormal.x, binormal.y, binormal.z > 0 ? -binormal.z : binormal.z);
+      ribbonNormals.push(binormal.x, binormal.y, binormal.z > 0 ? -binormal.z : binormal.z);
+
+      ribbonUvs.push(alpha, 0);
+      ribbonUvs.push(alpha, 1);
+
+      if (i < ribbonSubdivs) {
+        const vIdx = 2 * i;
+        ribbonIndices.push(vIdx, vIdx + 1, vIdx + 2);
+        ribbonIndices.push(vIdx + 1, vIdx + 3, vIdx + 2);
+      }
+    }
+
+    ribbonGeo.setIndex(ribbonIndices);
+    ribbonGeo.setAttribute("position", new THREE.Float32BufferAttribute(ribbonVerts, 3));
+    ribbonGeo.setAttribute("normal", new THREE.Float32BufferAttribute(ribbonNormals, 3));
+    ribbonGeo.setAttribute("uv", new THREE.Float32BufferAttribute(ribbonUvs, 2));
+    ribbonGeo.computeVertexNormals();
+
+    const ribbonMat = new THREE.MeshStandardMaterial({
+      color: 0x111116,
+      roughness: 0.5,
+      metalness: 0.85,
+      side: THREE.DoubleSide,
+    });
+    const ribbonMesh = new THREE.Mesh(ribbonGeo, ribbonMat);
+    projectsGroup.add(ribbonMesh);
 
     PROJECTS.slice(0, 8).forEach((project, idx) => {
       const t = idx / 7;
@@ -319,10 +375,11 @@ export function ShaderCanvas({
       tieModel.position.set(0, 0, 1.5);
       tieModel.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
-          (child as THREE.Mesh).material = new THREE.MeshStandardMaterial({
-            color: 0xffd700,
-            metalness: 0.95,
-            roughness: 0.15,
+          (child as THREE.Mesh).material = new THREE.MeshPhysicalMaterial({
+            color: new THREE.Color(0.722, 0.525, 0.043),
+            metalness: 0.9,
+            roughness: 0.2,
+            clearcoat: 0.1,
           });
         }
       });
@@ -336,8 +393,8 @@ export function ShaderCanvas({
 
     gltfLoader.load("/models/bank.glb", (gltf) => {
       bankModel = gltf.scene;
-      bankModel.scale.set(0.14, 0.14, 0.14);
-      bankModel.position.set(0, -0.45, 0.0);
+      bankModel.scale.set(0.12, 0.12, 0.12);
+      bankModel.position.set(0, -0.35, 0.0);
 
       // Texture materials for bank walls & metal
       const wallTex = textureLoader.load("/textures/bank_wall.webp");
@@ -353,17 +410,20 @@ export function ShaderCanvas({
       bankModel.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
-          if (mesh.name.includes("wall")) {
+          if (mesh.name === "render-plane") {
+            mesh.scale.set(0, 0, 0);
+            mesh.position.set(0, 0, -30);
+          } else if (mesh.name.includes("wall")) {
             mesh.material = new THREE.MeshStandardMaterial({
               map: wallTex,
-              roughness: 0.85,
-              metalness: 0.4,
+              roughness: 0.9,
+              metalness: 0.6,
             });
-          } else if (mesh.name !== "render-plane") {
+          } else {
             mesh.material = new THREE.MeshStandardMaterial({
               map: metalTex,
               metalness: 0.95,
-              roughness: 0.25,
+              roughness: 0.3,
             });
           }
         }
@@ -379,6 +439,16 @@ export function ShaderCanvas({
 
       goldenTieGroup.add(bankModel);
     });
+
+    // Vault Directional Spotlight from decoded spec
+    const vaultTarget = new THREE.Object3D();
+    vaultTarget.position.set(0, -0.6, 0);
+    goldenTieGroup.add(vaultTarget);
+
+    const vaultSpotLight = new THREE.SpotLight(0xffffff, 2.2, 30, 0.25, 1.2, 0.001);
+    vaultSpotLight.position.set(0, 4.5, 4);
+    vaultSpotLight.target = vaultTarget;
+    goldenTieGroup.add(vaultSpotLight);
 
     // -------------------------------------------------------------
     // SECTION 6: CONTACT (Telephones with Emissive Lamps & Ring Wobble)
@@ -525,17 +595,21 @@ export function ShaderCanvas({
           onSectionChange?.("hero");
           const u = 1 - Math.pow(1 - Math.min(p / 0.85, 1.0), 1.4);
 
-          // Camera zooms smoothly straight into the CRT computer display
+          // Camera zooms smoothly toward the computer display on the right
           mainCamera.position.set(
-            THREE.MathUtils.lerp(0, 0, u) + mouse.x * (1 - u) * 0.25,
-            THREE.MathUtils.lerp(0.2, -0.05, u) + mouse.y * (1 - u) * 0.2,
-            THREE.MathUtils.lerp(4.5, 0.95, u)
+            THREE.MathUtils.lerp(0, 0.65, u) + mouse.x * (1 - u) * 0.25,
+            THREE.MathUtils.lerp(0.2, -0.65, u) + mouse.y * (1 - u) * 0.2,
+            THREE.MathUtils.lerp(4.5, 1.4, u)
           );
-          mainCamera.lookAt(0, -0.05 * u, 0);
+          mainCamera.lookAt(
+            THREE.MathUtils.lerp(0, 0.65, u),
+            THREE.MathUtils.lerp(0, -0.65, u),
+            THREE.MathUtils.lerp(0, 0.4, u)
+          );
 
           if (computerModel) {
-            computerModel.rotation.y = Math.PI + mouse.x * 0.12 * (1 - u);
-            computerModel.rotation.x = -mouse.y * 0.08 * (1 - u);
+            computerModel.rotation.y = Math.PI - 0.25 + mouse.x * 0.1 * (1 - u);
+            computerModel.rotation.x = -mouse.y * 0.06 * (1 - u);
           }
           crtMaterial.uniforms.uDistortion.value = THREE.MathUtils.lerp(0.22, 0.20, u);
         }
@@ -580,12 +654,12 @@ export function ShaderCanvas({
           mainCamera.position.set(mouse.x * 0.15, mouse.y * 0.15, 5.2);
           mainCamera.lookAt(0, 0, 0);
 
-          // Shredder cogs rotate as you scroll!
+          // Shredder cogs rotate as you scroll down the page!
           if (shredderCogs) {
-            shredderCogs.rotation.x = -p * Math.PI * 4;
+            shredderCogs.rotation.x = -aboutProg * Math.PI * 8;
           }
           if (shredderModel) {
-            shredderModel.position.y = (aboutProg - 0.45) * 3.6;
+            shredderModel.position.y = (aboutProg - 0.45) * 4.2;
           }
           crtMaterial.uniforms.uDistortion.value = 0.08;
         }
@@ -594,29 +668,29 @@ export function ShaderCanvas({
           onSectionChange?.("golden-tie");
           const tVault = Math.max(0, Math.min(1, (p - 11.14) / 4.2));
 
-          // Vault Door AnimationMixer: handles spin, rods retract, door opens wide!
-          if (bankMixer && bankClip) {
-            const doorProg = Math.max(0, Math.min(1, (tVault + 0.08) / 0.85));
-            if (bankAction) {
-              bankAction.time = doorProg * bankClip.duration;
-              bankMixer.update(0);
-            }
+          // Vault Door AnimationMixer driven by scroll
+          if (bankMixer && bankClip && bankAction) {
+            const doorProg = Math.max(0, Math.min(1, (tVault + 0.1) / 0.8));
+            bankAction.time = doorProg * bankClip.duration;
+            bankMixer.update(0);
           }
 
-          // Golden Tie floats and glides smoothly into the vault
+          // Golden Tie floating with subtle metallic rotation
           if (tieModel) {
-            tieModel.position.set(0, 0.05, 2.2 - tVault * 2.5);
-            tieModel.rotation.y += delta * 1.2;
-            tieModel.rotation.z = Math.sin(now * 0.003) * 0.1;
+            tieModel.position.set(0, 0.05, 1.8 - tVault * 2.2);
+            tieModel.rotation.y += delta * 1.4;
+            tieModel.rotation.z = Math.sin(now * 0.003) * 0.08;
           }
 
-          // Camera smoothly approaches the bank vault as the door swings open
+          // Camera glide into vault: from (0, 0.2, 4.0) to (0, -0.4, -0.5)
+          const camStart = new THREE.Vector3(0, 0.2, 4.0);
+          const camEnd = new THREE.Vector3(0, -0.4, -0.5);
           mainCamera.position.set(
-            mouse.x * 0.25,
-            -0.2 - tVault * 0.15 + mouse.y * 0.2,
-            4.2 - tVault * 3.6
+            mouse.x * 0.2,
+            camStart.y + (camEnd.y - camStart.y) * tVault + mouse.y * 0.15,
+            camStart.z + (camEnd.z - camStart.z) * tVault
           );
-          mainCamera.lookAt(0, -0.3, -5);
+          mainCamera.lookAt(0, -0.2, -1.0);
           crtMaterial.uniforms.uDistortion.value = 0.22;
         }
         // 6. CONTACT ($p \ge 18.84$)
@@ -631,17 +705,18 @@ export function ShaderCanvas({
           );
           mainCamera.lookAt(0, -tCon * 0.4, 0);
 
-          // Telephones ringing wobble & blinking indicator lights
+          // Telephones ringing wobble & alternating indicator lights
           if (phonesModel) {
-            const ring = Math.sin(now * 0.035) * 0.015 * (Math.sin(now * 0.005) > 0 ? 1 : 0.2);
+            const isRinging = Math.sin(now * 0.005) > 0;
+            const ring = isRinging ? Math.sin(now * 0.04) * 0.02 : 0;
             phonesModel.rotation.z = ring;
-            phonesModel.position.x = 0.9 + ring * 0.4;
+            phonesModel.position.x = 0.9 + ring * 0.3;
           }
           if (redLampMat) {
             redLampMat.emissiveIntensity = Math.sin(now * 0.009) > 0 ? 3.0 : 0.2;
           }
           if (greenLampMat) {
-            greenLampMat.emissiveIntensity = 2.0;
+            greenLampMat.emissiveIntensity = Math.sin(now * 0.009) <= 0 ? 2.5 : 0.4;
           }
 
           crtMaterial.uniforms.uDistortion.value = 0.16;

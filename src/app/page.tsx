@@ -24,6 +24,7 @@ export default function HomePage() {
     if (sectionId === "hero") target = 0;
     else if (sectionId === "projects") target = vh * 1.0;
     else if (sectionId === "about-us") target = vh * 3.8;
+    else if (sectionId === "golden-tie") target = vh * 12.0;
     else if (sectionId === "contact") target = vh * 18.84;
 
     el.scrollTo({ top: target, behavior: "smooth" });

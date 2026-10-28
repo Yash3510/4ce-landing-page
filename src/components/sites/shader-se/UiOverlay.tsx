@@ -212,6 +212,40 @@ export function UiOverlay({ currentSection, isDark = false, onNavigate }: UiOver
         </div>
       )}
 
+      {/* Contextual Narrative Section Overlays */}
+      {currentSection === "hero" && (
+        <div className="absolute left-8 sm:left-14 md:left-20 lg:left-24 top-1/2 -translate-y-1/2 max-w-lg md:max-w-xl pointer-events-none transition-opacity duration-500">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal tracking-tight text-white/95 leading-[1.12]">
+            We make websites and digital experiences that people remember.
+          </h1>
+          <p className="mt-5 text-xs sm:text-sm md:text-base text-neutral-400 font-sans tracking-wide">
+            Award-winning interactive design studio crafting high-end 3D web applications.
+          </p>
+        </div>
+      )}
+
+      {currentSection === "about-us" && (
+        <div className="absolute top-28 left-8 sm:left-14 md:left-20 max-w-xl pointer-events-none transition-opacity duration-500 text-neutral-900">
+          <span className="text-xs font-mono uppercase tracking-widest text-neutral-500">
+            [03 — ABOUT US]
+          </span>
+          <h2 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-medium tracking-tight">
+            We are a creative engineering studio specializing in real-time 3D and playful design.
+          </h2>
+        </div>
+      )}
+
+      {currentSection === "golden-tie" && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center pointer-events-none transition-opacity duration-500 text-white w-full px-6">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight">
+            Check Out This Golden Tie
+          </h2>
+          <p className="mt-2 text-xs sm:text-sm text-neutral-400 tracking-wider">
+            You made it this far. You deserve a tie-break.
+          </p>
+        </div>
+      )}
+
       {/* Bottom Floating Controls */}
       <div className="absolute bottom-6 md:bottom-8 left-0 right-0 px-6 md:px-8 flex items-center justify-between pointer-events-auto">
         {/* Scroll Indicator */}
