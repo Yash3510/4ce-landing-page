@@ -48,10 +48,10 @@ export function createCrtMaterial(source: THREE.Texture) {
       }
 
       void main() {
-        float k = mix(0.015, 0.06, frame) + transition * 0.5;
+        float k = mix(0.008, 0.06, frame) + transition * 0.5;
         // The framed tube sits slightly inside the viewport, like a bezel.
         vec2 uv = barrel(vUv, k);
-        uv = (uv - 0.5) * (1.0 + frame * 0.035) + 0.5;
+        uv = (uv - 0.5) * mix(0.985, 1.035, frame) + 0.5;
         // Collapse vertically toward a bright line when switching channels.
         uv.y = (uv.y - 0.5) / max(1.0 - transition * 0.97, 0.03) + 0.5;
 

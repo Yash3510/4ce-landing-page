@@ -149,16 +149,20 @@ export function startEngine(opts: EngineOptions) {
   };
 
   (async () => {
-    const images = await loadImages(manager);
+    // Thumbnails stream in alongside the hero model; the hero screen copes with an empty list.
+    const images: HTMLImageElement[] = [];
     const ctx = { gltf, textures, images, environment };
-    // Hero first so the page can boot; the rest stream in behind it.
+    const imagesReady = loadImages(manager).then((list) => images.push(...list));
+    const others = Promise.all([createOffice(ctx), createTie(ctx), createContact(ctx)]);
     const hero = await createHero(ctx);
     if (disposed) return;
     stages.set("hero", hero);
-    stages.set("work", createWork(ctx));
     resize();
     opts.onReady(true);
-    const rest = await Promise.all([createOffice(ctx), createTie(ctx), createContact(ctx)]);
+    await imagesReady;
+    if (disposed) return;
+    stages.set("work", createWork(ctx));
+    const rest = await others;
     if (disposed) return;
     stages.set("office", rest[0]);
     stages.set("tie", rest[1]);

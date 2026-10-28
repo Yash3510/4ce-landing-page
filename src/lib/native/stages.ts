@@ -51,8 +51,8 @@ export function loadImages(manager: THREE.LoadingManager) {
 const damp = (current: number, target: number, lambda: number, delta: number) =>
   THREE.MathUtils.damp(current, target, lambda, delta);
 
-function makeCamera(fov: number) {
-  return new THREE.PerspectiveCamera(fov, 1, 0.05, 200);
+function makeCamera(fov: number, near = 0.1, far = 1000) {
+  return new THREE.PerspectiveCamera(fov, 1, near, far);
 }
 
 // Narrow screens need a wider vertical FOV to keep the subject's width in frame.
@@ -92,8 +92,12 @@ function textPlane(text: string, width: number) {
     ctx.font = `400 300px ${FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(255, 250, 224, 0.8)";
-    ctx.shadowBlur = 24;
+    ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+    ctx.shadowBlur = 30;
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = "rgba(20, 20, 24, 0.85)";
+    ctx.strokeText(text, 1024, 270);
+    ctx.shadowColor = "rgba(255, 250, 224, 0.9)";
     ctx.fillStyle = "#fcf9f3";
     ctx.fillText(text, 1024, 270);
   }
@@ -138,10 +142,23 @@ export async function createHero(ctx: StageContext): Promise<Stage> {
 
   const model = gltf.scene;
   scene.add(model);
+  // The baked backdrop reads too bright under our lights; sink it into the dark.
+  model.getObjectByName("background")?.traverse((o) => {
+    if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial) o.material.color.setScalar(0.18);
+  });
   const computer = model.getObjectByName("computer") ?? model;
   const box = new THREE.Box3().setFromObject(computer);
-  const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
+  // The model is baked at an angle; derive its facing from the logo badge toward the keyboard.
+  const centreOf = (name: string) =>
+    new THREE.Box3().setFromObject(model.getObjectByName(name) ?? model).getCenter(new THREE.Vector3());
+  const logo = centreOf("logo");
+  const front = centreOf("keyboard").sub(logo).setY(0).normalize();
+  const side = new THREE.Vector3().crossVectors(front, THREE.Object3D.DEFAULT_UP).negate();
+  const unit = box.max.y - box.min.y;
+  const size = new THREE.Vector3(unit, unit, unit);
+  const at = (f: number, r: number, u: number) =>
+    center.clone().addScaledVector(front, f * unit).addScaledVector(side, r * unit).setY(center.y + u * unit);
 
   // Screen content: project thumbnails cycling on a plane just in front of the glass.
   const screenCanvas = document.createElement("canvas");
@@ -154,9 +171,9 @@ export async function createHero(ctx: StageContext): Promise<Stage> {
     new THREE.PlaneGeometry(1, 0.75),
     new THREE.MeshBasicMaterial({ map: screenTexture, toneMapped: false }),
   );
-  screen.scale.setScalar(size.x * 0.56);
-  screen.position.set(center.x, box.min.y + size.y * 0.71, box.max.z - size.z * 0.38);
-  screen.rotation.x = -0.12;
+  screen.scale.setScalar(unit * 0.64);
+  screen.position.copy(logo).addScaledVector(front, -unit * 0.1).setY(box.min.y + unit * 0.66);
+  screen.lookAt(screen.position.clone().add(front).add(new THREE.Vector3(0, 0.12, 0)));
   scene.add(screen);
 
   let shown = -1;
@@ -176,25 +193,27 @@ export async function createHero(ctx: StageContext): Promise<Stage> {
     { mesh: smokeLayer(smoke, size.x * 7, 0.18), speed: 0.008, y: 0.4 },
   ];
   smokes.forEach(({ mesh, y }, i) => {
-    mesh.position.set(center.x - size.x * 0.6, center.y + size.y * y, box.min.z - size.z * (1 + i));
+    mesh.position.copy(at(-1 - i * 0.8, 0.8, y));
+    mesh.lookAt(mesh.position.clone().add(front));
     scene.add(mesh);
   });
 
   const key = new THREE.SpotLight("#fff1d6", 60, 0, 0.6, 0.6);
-  key.position.set(center.x - size.x, box.max.y + size.y * 1.5, box.max.z + size.z * 2);
+  key.position.copy(at(2, -1.2, 1.6));
   key.target.position.copy(center);
   scene.add(key, key.target, new THREE.AmbientLight("#9aa0c0", 0.5));
   const glow = new THREE.PointLight("#9ec7ff", 4, size.x * 3);
-  glow.position.set(center.x, screen.position.y, screen.position.z + size.z * 0.6);
+  glow.position.copy(screen.position).addScaledVector(front, unit * 0.6);
   scene.add(glow);
 
   const camera = makeCamera(32);
-  const look = center.clone().add(new THREE.Vector3(-size.x * 0.55, size.y * 0.05, 0));
-  const start = new THREE.Vector3(center.x - size.x * 0.75, center.y + size.y * 0.35, center.z + size.x * 2.6);
-  const zoom = new THREE.Vector3(screen.position.x, screen.position.y, screen.position.z + size.x * 0.75);
+  const look = at(0, -0.62, 0.02);
+  const start = at(3.3, 0.55, 0.3);
+  const zoom = screen.position.clone().addScaledVector(front, unit * 0.75);
   const pos = new THREE.Vector3();
   const target = new THREE.Vector3();
   const lookNow = look.clone();
+  const narrowStart = at(3.4, 0, 0.3);
   let narrow = false;
 
   return {
@@ -214,7 +233,7 @@ export async function createHero(ctx: StageContext): Promise<Stage> {
       // Scroll dollies the camera into the monitor glass before the cut to the work reel.
       const dolly = THREE.MathUtils.smoothstep(progress, 0.15, 1);
       const baseLook = narrow ? screen.position : look;
-      target.lerpVectors(narrow ? zoom.clone().setZ(start.z) : start, zoom, dolly);
+      target.lerpVectors(narrow ? narrowStart : start, zoom, dolly);
       target.x += pointer.x * size.x * 0.08 * (1 - dolly);
       target.y += pointer.y * size.y * 0.05 * (1 - dolly);
       pos.set(
@@ -331,7 +350,7 @@ export async function createOffice(ctx: StageContext): Promise<Stage> {
     scene.add(instanced);
   });
 
-  const camera = makeCamera(45);
+  const camera = makeCamera(45, 1, size.x * 20);
   scene.add(camera);
   const title = textPlane("About Us", 2.4);
   title.position.set(0, 0.25, -2.5);
@@ -423,14 +442,15 @@ export async function createContact(ctx: StageContext): Promise<Stage> {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#0b0b0e");
   scene.environment = ctx.environment;
-  scene.environmentIntensity = 0.6;
-  const key = new THREE.SpotLight("#fff1d6", 50, 0, 0.7, 0.6);
+  scene.environmentIntensity = 1;
+  const key = new THREE.SpotLight("#fff1d6", 6, 0, 0.7, 0.6, 0);
   key.position.set(center.x + size.x, center.y + size.y * 4, center.z + size.z * 3);
   key.target.position.copy(center);
   scene.add(model, key, key.target, new THREE.AmbientLight("#8088a8", 0.6));
 
   const camera = makeCamera(30);
-  const radius = Math.max(size.x, size.y) * 2.6;
+  // Stay inside the baked backdrop: look down on the phones from above and slightly in front.
+  const radius = Math.max(size.x, size.y, size.z) * 0.85;
   let angle = 0;
 
   return {
@@ -444,10 +464,10 @@ export async function createContact(ctx: StageContext): Promise<Stage> {
       angle = damp(angle, (progress - 0.5) * 0.6 + pointer.x * 0.2, 3, delta);
       camera.position.set(
         center.x + Math.sin(angle) * radius,
-        center.y + size.y * (1.2 + pointer.y * 0.3),
+        center.y + radius * (1.1 + pointer.y * 0.15),
         center.z + Math.cos(angle) * radius,
       );
-      camera.lookAt(center.x, center.y - size.y * 0.15, center.z);
+      camera.lookAt(center);
     },
   };
 }
