@@ -1,17 +1,16 @@
 {
-  "name": "shader-studio",
+  "name": "4ce-landing-page",
   "version": "1.0.0",
   "private": true,
-  "description": "Interactive 3D WebGPU Workstation & Studio Portfolio",
+  "description": "4CE - Interactive 3D Landing Page",
   "author": "Yash Kumar Singh",
   "license": "MIT",
   "keywords": [
-    "claude-code",
-    "website-clone",
-    "reverse-engineering",
     "nextjs",
-    "ai",
-    "template",
+    "react",
+    "threejs",
+    "webgpu",
+    "landing-page",
     "tailwindcss",
     "shadcn-ui"
   ],
