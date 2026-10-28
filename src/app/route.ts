@@ -1,13 +1,5 @@
-import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { NextResponse, NextRequest } from "next/server";
 
-export async function GET() {
-  const filePath = path.join(process.cwd(), "public/sites/shader-se/index.html");
-  const html = fs.readFileSync(filePath, "utf-8");
-  return new NextResponse(html, {
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-    },
-  });
+export async function GET(request: NextRequest) {
+  return NextResponse.redirect(new URL("/editions/winter2026", request.url));
 }
